@@ -33,14 +33,65 @@ from .losslib import ResponseLoss, get_criterion
 from .evaluationlib import get_predictions, hungarian_evaluate, contrastive_evaluate, scan_evaluate
 from ..model.ClusteringModel import DeepClusterCenter
 
+#===================================Main Train Function===================================#
+def main_train(task:str='ResponseProxy', model_type:str='PointSwin', 
+               ncluster:int=4, point2img=False, opti='adamw', 
+               pretext:str='byol', epochs:int=200, val_rate=0.2, 
+               batch_size:int=16, learn_rate=0.0001, feature_dim:int=256, 
+               save_model_epoch:int=50, data_root=None, result_root=None):
+    CFG = get_task_config(task=task, model_type=model_type, ncluster=ncluster,
+                          point2img=point2img, opti=opti, pretext=pretext, 
+                          epochs=epochs, val_rate=val_rate, batch_size=batch_size,
+                          learn_rate=learn_rate, feature_dim=feature_dim, 
+                          save_model_epoch=save_model_epoch, 
+                          data_root=data_root, result_root=result_root)
+    if task == 'ResponseProxy':
+        train_proxy(config=CFG)
+    elif task == 'supervised':
+        train_supervised(config=CFG)
+    elif task == 'scan':
+        train_scan(config=CFG)
+    elif task =='spice':
+        train_spice(config=CFG)
+    elif task == 'simclr':
+        train_simclr(config=CFG)
+    elif task == 'byol':
+        train_byol(config=CFG)
+    elif task == 'simsiam':
+        train_simsiam(config=CFG)
+    elif task == 'deepcluster':
+        train_deepcluster(config=CFG)
+    else:
+        raise ValueError('Invalid task {}'.format(task))
+        
+
+def get_task_config(task:str='ResponseProxy', model_type:str='PointSwin', 
+                    ncluster:int=4, point2img=False, opti='adamw', 
+                    pretext:str='byol', epochs:int=200, val_rate=0.2, 
+                    batch_size:int=16, learn_rate=0.0001, feature_dim:int=256, 
+                    save_model_epoch:int=50, data_root=None, result_root=None):
+    config = get_config(task=task, ncluster=ncluster, model_type=model_type, opti=opti, 
+                        point2img=point2img, data_root=data_root, result_root=result_root,
+                        pretext=pretext, feature_dim=feature_dim)
+    
+    if task == 'ResponseProxy':
+        config.train_config['lr']=learn_rate
+    else:
+        config.optimizer_config['optimizer_kwargs']['lr']=learn_rate
+        
+    config.train_config['train_loader']['BatchSize'] = batch_size
+    config.train_config['val_loader']['BatchSize'] = batch_size
+    config.train_config['epochs'] = epochs
+    config.train_config['val_rate'] = val_rate
+    config.train_config['save_model_epoch'] = save_model_epoch
+    
+    return config
+
+
 #===================================Training of Response Proxy Model===================================#
-def train_proxy(model_type='PointSwin', point2img=False, opti='adamw', batch_size:int=16, learn_rate=0.0001, data_root=None, result_root=None):
+def train_proxy(config):
     # create config
     task='ResponseProxy'
-    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, data_root=data_root, result_root=result_root)
-    config.train_config['lr']=learn_rate
-    config.train_config['train_loader']['BatchSize']=batch_size
-    config.train_config['val_loader']['BatchSize']=batch_size
     
     train_config = config.train_config
     paths = config.path_config
@@ -283,12 +334,8 @@ def train_proxy(model_type='PointSwin', point2img=False, opti='adamw', batch_siz
     logger.info('best Loss: {:.6f} in epoch: {}'.format(best_loss, best_epoch))
 
 #===================================Training of Supervised Model===================================#
-def train_supervised(model_type='PointSwin', point2img=False, opti='adamw', batch_size:int=16, learn_rate=0.0001, data_root=None, result_root=None):
+def train_supervised(config):
     task='supervised'
-    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, data_root=data_root, result_root=result_root)
-    config.optimizer_config['optimizer_kwargs']['lr']=learn_rate
-    config.train_config['train_loader']['BatchSize']=batch_size
-    config.train_config['val_loader']['BatchSize']=batch_size
     
     train_config = config.train_config
     paths = config.path_config
@@ -299,11 +346,22 @@ def train_supervised(model_type='PointSwin', point2img=False, opti='adamw', batc
     
     epoch_start=0
     # print cfg
-    print(colored('Info Config:', 'red'))
-    print(colored(config.info_config, 'red'))
-    print(colored('Model Config:', 'red'))
-    print(colored(model_config, 'red'))
+    print(colored('Info Config:', 'blue'))
+    print(colored(config.info_config, 'yellow'))
+    print(colored('Model Config:', 'blue'))
+    print(colored(model_config, 'yellow'))
+    print(colored('Train Config:', 'blue'))
+    print(colored(train_config, 'yellow'))
+    print(colored('Paths:', 'blue'))
+    print(colored(paths, 'yellow'))
+    print(colored('Data Config:', 'blue'))
+    print(colored(data_config, 'yellow'))
+    print(colored('Optimizer Config:', 'blue'))
+    print(colored(optimizer_config, 'yellow'))
+    print(colored('Criterion Config:', 'blue'))
+    print(colored(criterion_config, 'yellow'))
     
+    model_type = config.model_type
     # create and load model
     print(colored('Get model', 'blue'))
     supervisedmodel = getModel(config)
@@ -457,12 +515,8 @@ def supervised_one_epoch(train_loader, model, criterion, optimizer, epoch, logge
             
 
 #===================================Training of Scan Model===================================#
-def train_scan(model_type='PointSwin', ncluster:int=4, point2img=False, opti='adamw', pretext='simclr', batch_size:int=16, learn_rate=0.0001, data_root=None, result_root=None):
+def train_scan(config):
     task = 'scan'
-    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, pretext=pretext, data_root=data_root, result_root=result_root)
-    config.optimizer_config['optimizer_kwargs']['lr']=learn_rate
-    config.train_config['train_loader']['BatchSize']=batch_size
-    config.train_config['val_loader']['BatchSize']=batch_size
     
     train_config = config.train_config
     paths = config.path_config
@@ -473,13 +527,25 @@ def train_scan(model_type='PointSwin', ncluster:int=4, point2img=False, opti='ad
     
     epoch_start=0
     # print cfg
-    print(colored('Info Config:', 'red'))
-    print(colored(config.info_config, 'red'))
-    print(colored('Model Config:', 'red'))
-    print(colored(model_config, 'red'))
+    print(colored('Info Config:', 'blue'))
+    print(colored(config.info_config, 'yellow'))
+    print(colored('Model Config:', 'blue'))
+    print(colored(model_config, 'yellow'))
+    print(colored('Train Config:', 'blue'))
+    print(colored(train_config, 'yellow'))
+    print(colored('Paths:', 'blue'))
+    print(colored(paths, 'yellow'))
+    print(colored('Data Config:', 'blue'))
+    print(colored(data_config, 'yellow'))
+    print(colored('Optimizer Config:', 'blue'))
+    print(colored(optimizer_config, 'yellow'))
+    print(colored('Criterion Config:', 'blue'))
+    print(colored(criterion_config, 'yellow'))
     # CUDNN
     torch.backends.cudnn.benchmark = True
     
+    model_type = config.model_type
+    pretext = config.pretext
     # create and load model
     print(colored('Get model', 'blue'))
     scanmodel = getModel(config)
@@ -693,12 +759,8 @@ def scan_one_epoch(train_loader, model, criterion, optimizer, epoch, logger, upd
             logger.info(infomation)
 
 #===================================Training of Spice Model===================================#
-def train_spice(model_type='PointSwin', ncluster:int=4, point2img=False, opti='adamw', pretext='byol', batch_size:int=16, learn_rate=0.0001, data_root=None, result_root=None):
+def train_spice(config):
     task = 'spice'
-    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, pretext=pretext, data_root=data_root, result_root=result_root)
-    config.optimizer_config['optimizer_kwargs']['lr']=learn_rate
-    config.train_config['train_loader']['BatchSize']=batch_size
-    config.train_config['val_loader']['BatchSize']=batch_size
     
     train_config = config.train_config
     paths = config.path_config
@@ -727,6 +789,8 @@ def train_spice(model_type='PointSwin', ncluster:int=4, point2img=False, opti='a
     # CUDNN
     torch.backends.cudnn.benchmark = True
     
+    model_type = config.model_type
+    pretext = config.pretext
     # create and load model
     print(colored('Get model', 'blue'))
     spicemodel = getModel(config)
@@ -1032,12 +1096,8 @@ def train_kmeans():
     pass
 
 #===================================Training of Simclr Model===================================#
-def train_simclr(model_type='PointSwin', point2img=False, opti='adamw', batch_size:int=16, learn_rate=0.0001, data_root=None, result_root=None):
+def train_simclr(config):
     task='simclr'
-    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, data_root=data_root, result_root=result_root)
-    config.optimizer_config['optimizer_kwargs']['lr']=learn_rate
-    config.train_config['train_loader']['BatchSize']=batch_size
-    config.train_config['val_loader']['BatchSize']=batch_size
     
     train_config = config.train_config
     paths = config.path_config
@@ -1048,11 +1108,23 @@ def train_simclr(model_type='PointSwin', point2img=False, opti='adamw', batch_si
     
     epoch_start=0
     # print cfg
-    print(colored('Info Config:', 'red'))
-    print(colored(config.info_config, 'red'))
-    print(colored('Model Config:', 'red'))
-    print(colored(model_config, 'red'))
+    print(colored('Info Config:', 'blue'))
+    print(colored(config.info_config, 'yellow'))
+    print(colored('Model Config:', 'blue'))
+    print(colored(model_config, 'yellow'))
+    print(colored('Train Config:', 'blue'))
+    print(colored(train_config, 'yellow'))
+    print(colored('Paths:', 'blue'))
+    print(colored(paths, 'yellow'))
+    print(colored('Data Config:', 'blue'))
+    print(colored(data_config, 'yellow'))
+    print(colored('Optimizer Config:', 'blue'))
+    print(colored(optimizer_config, 'yellow'))
+    print(colored('Criterion Config:', 'blue'))
+    print(colored(criterion_config, 'yellow'))
     
+    model_type = config.model_type
+    point2img = config.point2img
     # create and load model
     print(colored('Get model', 'blue'))
     simclrmodel = getModel(config)
@@ -1227,12 +1299,8 @@ def simclr_one_epoch(train_loader, model, criterion, optimizer, epoch, logger, p
             logger.info(infomation)
 
 #===================================Training of BYOL Model===================================#
-def train_byol(model_type='PointSwin', point2img=False, opti='adamw', batch_size:int=16, learn_rate=0.0001, data_root=None, result_root=None):
+def train_byol(config):
     task='byol'
-    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, data_root=data_root, result_root=result_root)
-    config.optimizer_config['optimizer_kwargs']['lr']=learn_rate
-    config.train_config['train_loader']['BatchSize']=batch_size
-    config.train_config['val_loader']['BatchSize']=batch_size
     
     train_config = config.train_config
     paths = config.path_config
@@ -1243,11 +1311,23 @@ def train_byol(model_type='PointSwin', point2img=False, opti='adamw', batch_size
     
     epoch_start=0
     # print cfg
-    print(colored('Info Config:', 'red'))
-    print(colored(config.info_config, 'red'))
-    print(colored('Model Config:', 'red'))
-    print(colored(model_config, 'red'))
+    print(colored('Info Config:', 'blue'))
+    print(colored(config.info_config, 'yellow'))
+    print(colored('Model Config:', 'blue'))
+    print(colored(model_config, 'yellow'))
+    print(colored('Train Config:', 'blue'))
+    print(colored(train_config, 'yellow'))
+    print(colored('Paths:', 'blue'))
+    print(colored(paths, 'yellow'))
+    print(colored('Data Config:', 'blue'))
+    print(colored(data_config, 'yellow'))
+    print(colored('Optimizer Config:', 'blue'))
+    print(colored(optimizer_config, 'yellow'))
+    print(colored('Criterion Config:', 'blue'))
+    print(colored(criterion_config, 'yellow'))
     
+    model_type = config.model_type
+    point2img = config.point2img
     # create and load model
     print(colored('Get model', 'blue'))
     byolmodel = getModel(config)
@@ -1324,7 +1404,10 @@ def train_byol(model_type='PointSwin', point2img=False, opti='adamw', batch_size
         
         # Train
         print('Train ...')
-        byolmodel, target_model = byol_one_epoch(train_loader=train_loader, model=byolmodel, target_model=target_model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger, point2img=point2img)
+        byolmodel, target_model = byol_one_epoch(train_loader=train_loader, model=byolmodel, 
+                                                 target_model=target_model, criterion=criterion, 
+                                                 optimizer=optimizer, epoch=epoch, logger=logger, 
+                                                 point2img=point2img)
         
         # Fill memory bank
         print('Fill memory bank for kNN...')
@@ -1421,12 +1504,8 @@ def byol_one_epoch(train_loader, model, target_model, criterion, optimizer, epoc
     return model, target_model
  
 #===================================Training of Simsiam Model===================================#
-def train_simsiam(model_type='PointSwin', point2img=False, opti='adamw', batch_size:int=16, learn_rate=0.0001, data_root=None, result_root=None):
+def train_simsiam(config):
     task='simsiam'
-    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, data_root=data_root, result_root=result_root)
-    config.optimizer_config['optimizer_kwargs']['lr']=learn_rate
-    config.train_config['train_loader']['BatchSize']=batch_size
-    config.train_config['val_loader']['BatchSize']=batch_size
     
     train_config = config.train_config
     paths = config.path_config
@@ -1437,11 +1516,22 @@ def train_simsiam(model_type='PointSwin', point2img=False, opti='adamw', batch_s
     
     epoch_start=0
     # print cfg
-    print(colored('Info Config:', 'red'))
-    print(colored(config.info_config, 'red'))
-    print(colored('Model Config:', 'red'))
-    print(colored(model_config, 'red'))
+    print(colored('Info Config:', 'blue'))
+    print(colored(config.info_config, 'yellow'))
+    print(colored('Model Config:', 'blue'))
+    print(colored(model_config, 'yellow'))
+    print(colored('Train Config:', 'blue'))
+    print(colored(train_config, 'yellow'))
+    print(colored('Paths:', 'blue'))
+    print(colored(paths, 'yellow'))
+    print(colored('Data Config:', 'blue'))
+    print(colored(data_config, 'yellow'))
+    print(colored('Optimizer Config:', 'blue'))
+    print(colored(optimizer_config, 'yellow'))
+    print(colored('Criterion Config:', 'blue'))
+    print(colored(criterion_config, 'yellow'))
     
+    model_type = config.model_type
     # create and load model
     print(colored('Get model', 'blue'))
     simsiammodel = getModel(config)
@@ -1612,13 +1702,9 @@ def simsiam_one_epoch(train_loader, model, criterion, optimizer, epoch, logger):
             logger.info(infomation)
 
 #===================================Training of Deepcluster Model===================================#
-def train_deepcluster(model_type='PointSwin', ncluster:int=4, point2img=False, opti='adamw', pretext='byol', batch_size:int=16, learn_rate=0.0001, data_root=None, result_root=None):
+def train_deepcluster(config):
     task = 'deepcluster'
-    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, pretext=pretext, data_root=data_root, result_root=result_root)
-    config.optimizer_config['optimizer_kwargs']['lr']=learn_rate
-    config.train_config['train_loader']['BatchSize']=batch_size
-    config.train_config['val_loader']['BatchSize']=batch_size
-    
+
     train_config = config.train_config
     paths = config.path_config
     model_config = config.model_config
@@ -1628,22 +1714,26 @@ def train_deepcluster(model_type='PointSwin', ncluster:int=4, point2img=False, o
     
     epoch_start=0
     # print cfg
-    print(colored('Info Config:', 'red'))
-    print(colored(config.info_config, 'red'))
+    print(colored('Info Config:', 'blue'))
+    print(colored(config.info_config, 'yellow'))
     print(colored('Model Config:', 'blue'))
-    print(colored(model_config, 'blue'))
-    print(colored('Train Config:', 'yellow'))
+    print(colored(model_config, 'yellow'))
+    print(colored('Train Config:', 'blue'))
     print(colored(train_config, 'yellow'))
-    print(colored('Paths:', 'red'))
-    print(colored(paths, 'red'))
+    print(colored('Paths:', 'blue'))
+    print(colored(paths, 'yellow'))
     print(colored('Data Config:', 'blue'))
-    print(colored(data_config, 'blue'))
-    print(colored('Optimizer Config:', 'yellow'))
+    print(colored(data_config, 'yellow'))
+    print(colored('Optimizer Config:', 'blue'))
     print(colored(optimizer_config, 'yellow'))
+    print(colored('Criterion Config:', 'blue'))
+    print(colored(criterion_config, 'yellow'))
     
     # CUDNN
     torch.backends.cudnn.benchmark = True
     
+    model_type = config.model_type
+    pretext = config.pretext
     # create and load model
     print(colored('Get model', 'blue'))
     deepclusmodel = getModel(config)

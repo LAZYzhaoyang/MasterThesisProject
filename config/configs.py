@@ -26,13 +26,20 @@ def build_dirs(root):
         
     return dir_config
 
-def get_config(task='ResponseProxy', ncluster:int=4, model_type='PointSwin', opti='adamw', point2img=False, data_root=None, result_root=None, **kwargs):
+def get_config(task='ResponseProxy', ncluster:int=4, 
+               model_type='PointSwin', opti='adamw', 
+               point2img=False, data_root=None,
+               result_root=None, **kwargs):
     if task=='ResponseProxy':
-        config = ResponseProxyConfig(ModelType=model_type, opti=opti, data_root=data_root, result_root=result_root)
+        config = ResponseProxyConfig(ModelType=model_type, opti=opti, 
+                                     data_root=data_root, result_root=result_root)
         config.data_config['point2img'] = point2img
         config.data_config['task'] = task
     elif task in ['simclr', 'byol', 'simsiam', 'deepcluster', 'scan', 'spice', 'supervised']:
-        config = ClusterConfig(task=task, ncluster=ncluster, BackboneType=model_type, opti=opti, point2img=point2img, data_root=data_root, result_root=result_root, **kwargs)
+        config = ClusterConfig(task=task, ncluster=ncluster, 
+                               BackboneType=model_type, opti=opti, 
+                               point2img=point2img, data_root=data_root, 
+                               result_root=result_root, **kwargs)
     else:
         raise ValueError('Invalid Task name {}.'.format(task))
     return config
@@ -81,13 +88,17 @@ class ResponseProxyConfig:
 
 class ClusterConfig:
     def __init__(self, ncluster:int=4, task='simclr', BackboneType='PointSwin', 
-                 DatsetName='tube', opti='adawm', scheduler='cosine', 
+                 DatsetName='tube', opti='adawm', scheduler='cosine', feature_dim=128,
                  point2img=False, pretext:str='simclr', data_root=None, result_root=None, 
                  is_train:bool=True):
         self.task = task
         assert task in ['simclr', 'byol', 'simsiam', 'scan', 'spice', 'deepcluster', 'supervised']
         self.info_config = getInfoConfig(task=task, backbone=BackboneType, 
                                          datasetname=DatsetName)
+        self.model_type = BackboneType
+        self.pretext = pretext
+        self.point2img = point2img
+        
         if result_root is not None:
             self.info_config['result_root']=result_root
         if data_root is not None:
@@ -105,12 +116,13 @@ class ClusterConfig:
         self.criterion_config = getCriterionConfig(task=task)
         
         if task in ['simclr', 'byol', 'simsiam', 'moco', 'scan', 'deepcluster', 'selflabel', 'spice']:
-            self.model_config = getClusterModelConfig(ModelType=BackboneType, task=task, num_cluster=ncluster)
+            self.model_config = getClusterModelConfig(ModelType=BackboneType, task=task, 
+                                                      num_cluster=ncluster, feature_dim=feature_dim)
             self.data_config['one_hot'] = False
             if task in ['selflabel', 'spice']:
                 self.model_config['nheads']=1
         elif task == 'supervised':
-            self.model_config = getSupervisedModelConfig(ModelType=BackboneType)
+            self.model_config = getSupervisedModelConfig(ModelType=BackboneType, feature_dim=feature_dim)
             self.model_config['nheads'] = 1
             self.data_config['one_hot'] = True
         else:
@@ -143,8 +155,8 @@ def getFeatureModelConfig(ModelType:str='PointSwin',feature_dim:int=128):
     return config
 
 def getClusterModelConfig(ModelType:str='PointSwin', task:str='simclr', 
-                          num_cluster:int=4, head:str='mlp', feature_dim:int=128, 
-                          contrastive_feadim:int=128, nheads:int=1):
+                          num_cluster:int=4, head:str='mlp', feature_dim:int=128,  
+                          nheads:int=1):
     config = {}
     backbone_config = getFeatureModelConfig(ModelType=ModelType, feature_dim=feature_dim)
     
@@ -154,7 +166,7 @@ def getClusterModelConfig(ModelType:str='PointSwin', task:str='simclr',
     config['task']=task
     config['head']=head
     config['nheads']=nheads
-    config['contrastive_feadim']=contrastive_feadim
+    config['contrastive_feadim']=feature_dim
     
     return config
 
