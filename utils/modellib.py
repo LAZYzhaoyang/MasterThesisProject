@@ -1,3 +1,5 @@
+import sys
+sys.path.append('.') 
 from model.ClusteringModel import getClusterModel, saveClusterModel, loadClusterModel
 from model.ResponseProxyModel import getProxyModel, save_ResponseProxyModel, load_ResponseProxyModel
 from model.SupervisedModel import getSupervisedModel, saveSupervisedModel, loadSupervisedModel
