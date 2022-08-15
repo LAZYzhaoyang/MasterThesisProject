@@ -9,7 +9,9 @@ import collections
 
 import torch
 from torch.utils.data import SubsetRandomSampler
-from torch._six import string_classes, int_classes
+#from torch._six import string_classes, int_classes
+int_classes = int
+string_classes = str
 
 def getDataset(config):
     task = config['task']
