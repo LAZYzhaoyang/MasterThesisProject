@@ -2,7 +2,7 @@ import imp
 import numpy as np
 import torch
 import time
-from utils.toollib import squeeze_node, unsqueeze_node
+from ..utils.toollib import squeeze_node, unsqueeze_node
 
 
 def fps(points, num):
