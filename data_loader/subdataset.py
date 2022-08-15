@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 from .data_aug import get_transformers, get_supervised_transform, getAugmentedTransform, \
     getNeighborTransform, getSpiceTransform
 
-from utils.toollib import squeeze_node, listnode2img
+from ..utils.toollib import squeeze_node, listnode2img
 
 """ 
     AugmentedDataset
