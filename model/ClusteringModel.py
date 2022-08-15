@@ -10,7 +10,7 @@ from sklearn import metrics
 from sklearn.metrics import confusion_matrix
 from sklearn.cluster import KMeans
 import numpy as np
-from utils.toollib import ToNumpy,ToTensor
+from ..utils.toollib import ToNumpy,ToTensor
 
 class ContrastiveModel(nn.Module):
     def __init__(self, backbone, head='mlp', features_dim=128):
