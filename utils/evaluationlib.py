@@ -8,7 +8,7 @@ import sklearn.metrics
 
 from .losslib import entropy
 from .toollib import AverageMeter, confusion_matrix, ToTensor
-from data_loader.subdataset import NeighborsDataset
+from ..data_loader.subdataset import NeighborsDataset
 
 
 @torch.no_grad()
