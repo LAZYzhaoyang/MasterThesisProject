@@ -1,6 +1,6 @@
 from sklearn.utils import shuffle
-from data_loader.base_dataset import Response_DataLoader, PointCloudDataset
-from data_loader.subdataset import AugmentedDataset, NeighborsDataset, \
+from ..data_loader.base_dataset import Response_DataLoader, PointCloudDataset
+from ..data_loader.subdataset import AugmentedDataset, NeighborsDataset, \
     SpiceDataset, SupervisedDataset
 
 import numpy as np
