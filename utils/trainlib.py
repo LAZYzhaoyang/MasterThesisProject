@@ -27,13 +27,11 @@ from .toollib import check_dirs, time2hms, ToNumpy, ToTensor, AverageMeter, \
     ProgressMeter, get_logger, get_optimizer, adjust_learning_rate, \
     save_clustering_stats, MemoryBank, fill_memory_bank, set_requires_grad, update_moving_average
 from .modellib import getModel, saveModel, loadModel
-from config.configs import get_config
+from ..config.configs import get_config, ClusterConfig
 from .datalib import getDataset, getDataloader, splitDataset
 from .losslib import ResponseLoss, get_criterion
 from .evaluationlib import get_predictions, hungarian_evaluate, contrastive_evaluate, scan_evaluate
-from model.ClusteringModel import DeepClusterCenter
-
-from config.configs import ClusterConfig
+from ..model.ClusteringModel import DeepClusterCenter
 
 #===================================Training of Response Proxy Model===================================#
 def train_proxy(model_type='PointSwin', point2img=False, opti='adamw', batch_size:int=16, learn_rate=0.0001, data_root=None, result_root=None):
