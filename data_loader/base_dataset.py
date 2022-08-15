@@ -31,8 +31,9 @@ class Response_DataLoader(Dataset):
         dir_name = self.dir_list[index]
         dir_path = os.path.join(self.data_path, dir_name)
         init_coordinate, node_coordinate, param, res = self.read_data(dir_path)
+        out={'init_node':init_coordinate, 'out_node':node_coordinate, 'params':param, 'res':res}
         
-        return init_coordinate, node_coordinate, param, res
+        return out
         
     def read_data(self, path):
         param_file = os.path.join(path, 'parameter.npy')

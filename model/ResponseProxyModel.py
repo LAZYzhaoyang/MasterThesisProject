@@ -10,8 +10,8 @@ from torch import einsum
 import numpy as np
 import os
 
-from .PointSwinTransformer import ResponsePointSwinTransformerProxyModel
-from .PointTransformer import ResponsePointTransformerProxyModel
+from .base_model.PointSwinTransformer import ResponsePointSwinTransformerProxyModel
+from .base_model.PointTransformer import ResponsePointTransformerProxyModel
 #==================================Point Swin==================================#
 def getProxyModel(config, model_type='PointSwin'):
     if model_type == 'PointSwin':

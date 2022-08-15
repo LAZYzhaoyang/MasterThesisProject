@@ -458,6 +458,8 @@ def getAugmentedTransform():
              #PointcloudNormalize(),
              PointcloudJitter(p=0.5),
              PointcloudShuffle(p=0.5),
+             PointcloudScale(p=0.5),
+             PointcloudRotate(p=0.5),
              PointcloudToNumpy()]
     
     aug = [PointcloudToTensor(),
@@ -482,6 +484,8 @@ def getNeighborTransform():
              #PointcloudNormalize(),
              PointcloudJitter(p=0.5),
              PointcloudShuffle(p=0.5),
+             PointcloudScale(p=0.5),
+             PointcloudRotate(p=0.5),
              PointcloudToNumpy()]
     
     aug = [PointcloudToTensor(),
@@ -500,3 +504,41 @@ def getNeighborTransform():
                   'augment':aug_transform}
     
     return transforms
+
+def getSpiceTransform():
+    ori = [PointcloudToTensor(),
+           #PointcloudNormalize(),
+           PointcloudJitter(p=0.5),
+           PointcloudShuffle(p=0.5),
+           PointcloudTranslate(p=0.5), 
+           PointcloudRotate(p=0.5),
+           PointcloudToNumpy()]
+    
+    aug1 = [PointcloudToTensor(),
+            #PointcloudNormalize(),
+            PointcloudJitter(p=0.5),
+            PointcloudShuffle(p=0.5),
+            PointcloudTranslate(p=0.5), 
+            PointcloudScale(p=0.5),
+            PointcloudToNumpy()]
+    
+    aug2 = [PointcloudToTensor(),
+            #PointcloudNormalize(),
+            #PointcloudRandomCrop(min_num_points=128, p=1),
+            PointcloudJitter(p=0.5),
+            PointcloudTranslate(p=0.5), 
+            PointcloudScale(p=0.5),
+            PointcloudRotate(p=0.5),
+            PointcloudShuffle(p=0.5),
+            #PointcloudUpSampling(time_step=5),
+            PointcloudToNumpy()]
+    
+    ori_transformer = Compose(transformers=ori)
+    aug1_transformer = Compose(transformers=aug1)
+    aug2_transformer = Compose(transformers=aug2)
+    
+    transformers = {'standard': ori_transformer,
+                    'weak_augment': aug1_transformer,
+                    'strong_augment':aug2_transformer}
+    
+    return transformers

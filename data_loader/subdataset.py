@@ -5,7 +5,8 @@ Licensed under the CC BY-NC 4.0 license (https://creativecommons.org/licenses/by
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from .data_aug import get_transformers, get_supervised_transform, getAugmentedTransform, getNeighborTransform
+from .data_aug import get_transformers, get_supervised_transform, getAugmentedTransform, \
+    getNeighborTransform, getSpiceTransform
 
 from utils.toollib import squeeze_node, listnode2img
 
@@ -114,7 +115,7 @@ class NeighborsDataset(Dataset):
 class SpiceDataset(Dataset):
     def __init__(self, dataset, point2img=False, img_h=64, sq_ch=False):
         super(SpiceDataset, self).__init__()
-        transforms = get_transformers()
+        transforms = getSpiceTransform()
         dataset.transform = None
         self.anchor_transform = transforms['standard']
         self.weak_transform = transforms['weak_augment']
@@ -135,19 +136,19 @@ class SpiceDataset(Dataset):
         
         weak_trans = self.weak_transform(anchor['node'])
         strong_trans = self.strong_transform(anchor['node'])
-        anchor['node'] = self.anchor_transform(anchor['node'])
+        anchor_node = self.anchor_transform(anchor['node'])
 
         if self.point2img:
-            anchor['node'] = listnode2img(anchor['node'], self.img_h)
+            anchor_node = listnode2img(anchor_node, self.img_h)
             weak_trans = listnode2img(weak_trans, self.img_h)
             strong_trans = listnode2img(strong_trans, self.img_h)
             
         if self.sq_ch:
-            anchor['node'] = squeeze_node(anchor['node'])
+            anchor_node= squeeze_node(anchor_node)
             weak_trans = squeeze_node(weak_trans)
             strong_trans = squeeze_node(strong_trans)
 
-        output['node'] = anchor['node']
+        output['node'] = anchor_node
         output['weak_trans'] = weak_trans
         output['strong_trans'] = strong_trans
         output['label'] = anchor['label']

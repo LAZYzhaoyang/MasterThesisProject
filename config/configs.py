@@ -1,11 +1,8 @@
 # coding=utf-8
-from asyncio import tasks
 import os
 
-from pytz import BaseTzInfo
-import torch
-import numpy as np
 from utils.toollib import check_dirs
+from .base_config import *
 
 #=================================Tools=================================#
 def build_dirs(root):
@@ -29,13 +26,13 @@ def build_dirs(root):
         
     return dir_config
 
-def get_config(task='ResponseProxy', model_type='PointSwin', opti='adamw', point2img=False, **kwargs):
+def get_config(task='ResponseProxy', ncluster:int=4, model_type='PointSwin', opti='adamw', point2img=False, data_root=None, result_root=None, **kwargs):
     if task=='ResponseProxy':
-        config = ResponseProxyConfig(ModelType=model_type, opti=opti)
+        config = ResponseProxyConfig(ModelType=model_type, opti=opti, data_root=data_root, result_root=result_root)
         config.data_config['point2img'] = point2img
         config.data_config['task'] = task
-    elif task in ['simclr', 'byol', 'simsiam', 'deepcluster', 'moco', 'scan', 'selflabel', 'spice', 'supervised']:
-        config = ClusterConfig(task=task, BackboneType=model_type, opti=opti, point2img=point2img, **kwargs)
+    elif task in ['simclr', 'byol', 'simsiam', 'deepcluster', 'scan', 'spice', 'supervised']:
+        config = ClusterConfig(task=task, ncluster=ncluster, BackboneType=model_type, opti=opti, point2img=point2img, data_root=data_root, result_root=result_root, **kwargs)
     else:
         raise ValueError('Invalid Task name {}.'.format(task))
     return config
@@ -43,11 +40,15 @@ def get_config(task='ResponseProxy', model_type='PointSwin', opti='adamw', point
 #=================================Response Proxy Model Config=================================#
 
 class ResponseProxyConfig:
-    def __init__(self, ModelType='PointSwin', opti='adamw'):
+    def __init__(self, ModelType='PointSwin', opti='adamw', data_root=None, result_root=None):
         self.info_config = {'dataset_path':'./data',
                             'result_root':'./result/ResponseProxy{}'.format(ModelType),
                             'optimizer':opti}
-        
+        if result_root is not None:
+            self.info_config['result_root'] = result_root
+        if data_root is not None:
+            self.info_config['dataset_path'] = data_root
+            
         self.path_config = build_dirs(root=self.info_config['result_root'])
         
         if ModelType=='PointSwin':
@@ -74,143 +75,23 @@ class ResponseProxyConfig:
         self.data_config['task'] = 'ResponseProxy'
         
         self.model_config['task'] = 'ResponseProxy'
-        
-### Point Swin Transformer
-ResponseProxyPointSwinTransformerConfig = {
-    'in_channel':3,
-    'out_channel':15,
-    'param_dim':8,
-    'res_dim':2,
-    'embed_dim':32,
-    'npoints':1024,
-    'scale_factor':4,
-    'stage_num':3,
-    'layers_num':1,
-    'heads':8,
-    'head_dims':32,
-    'window_size':4,
-    'attn_layers':4,
-    'mlp_dim':None
-}
-
-PointSwinTransformer_ProxyTrainConfig = {
-    'val_rate':0.05,
-    'epochs':800,
-    'lr':0.0001,
-    'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
-    'weight_decay':5e-4,
-    'momentum':0.8,
-    'shuffle_data':True,
-    'use_fp16':False,
-    'save_per_epoch':100,
-    'save_model_epoch':50,
-    'show_iter':100,
-    'train_loader':{'NumWorker':4,'BatchSize':4},
-    'val_loader':{'NumWorker':4,'BatchSize':1}
-}
-
-PointSwinTransformer_ResponseDataConfig = {
-    'point2img':False,
-    'one_hot':True,
-    'npoint':1024
-}
-
-### Point Transformer
-ResponseProxyPointTransformerConfig = {
-    'in_channel':3,
-    'out_channel':15,
-    'param_dim':8,
-    'res_dim':2,
-    'embedding_dim':32,
-    'npoints':1024,
-    'nblocks':4,
-    'nneighbor':16,
-    'transformer_dim':128
-}
-
-PointTransformer_ProxyTrainConfig = {
-    'val_rate':0.05,
-    'epochs':400,
-    'batch_size':4,
-    'lr':0.001,
-    'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
-    'weight_decay':5e-4,
-    'momentum':0.8,
-    'shuffle_data':True,
-    'use_fp16':False,
-    'save_per_epoch':100,
-    'save_model_epoch':50,
-    'show_iter':100,
-    'train_loader':{'NumWorker':4,'BatchSize':4},
-    'val_loader':{'NumWorker':4,'BatchSize':1}
-}
-
-PointTransformer_ResponseDataConfig = {
-    'point2img':False,
-    'one_hot':True,
-    'npoint':1024
-}
-
-
-#=================================Scan Config=================================#
-
-BaseInfoConfig = {
-    'dataset_path':'./data',
-    'result_root':'./result/Clustering'
-}
-
-BaseTrainConfig = {
-    'device':torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
-    'epochs':200,
-    'val_rate':0.2,
-    'shuffle_data':True,
-    'save_model_epoch':50,
-    'train_loader':{'NumWorker':8,'BatchSize':8},
-    'val_loader':{'NumWorker':8,'BatchSize':8},
-}
-
-BaseDataConfig = {
-    'n_class':4,
-    'one_hot':False, # simclr: False; supervised: True
-    'weak_augmentation':True,
-    'num_neighbors':16,
-    'class_name':['圆环', '钻石', '混合', '其它'],
-    'val_rate':0.2,
-    'shuffle_data':True
-}
-
-BasePointSwinConfig = {
-    'in_channels':15,
-    'feature_dim':128,
-    'hiddim':64,
-    'heads':8,
-    'headdim':32,
-    'embeddim':4,
-    'stage_num':3,
-    'downscale':4,
-    'layer_num':1,
-    'window_size':4,
-    'attnlayer':1
-}
-
-BasePointTransConfig = {
-    'in_channels':15,
-    'feature_dim':128,
-    'embedding_dim':32,
-    'npoints':1024,
-    'nblocks':4,
-    'nneighbor':32,
-    'transformer_dim':128
-}
+            
+    
+#=================================Clustering Config=================================#
 
 class ClusterConfig:
-    def __init__(self, task='simclr', BackboneType='PointSwin', 
+    def __init__(self, ncluster:int=4, task='simclr', BackboneType='PointSwin', 
                  DatsetName='tube', opti='adawm', scheduler='cosine', 
-                 point2img=False, pretext:str='simclr', is_train:bool=True):
+                 point2img=False, pretext:str='simclr', data_root=None, result_root=None, 
+                 is_train:bool=True):
         self.task = task
-        assert task in ['simclr', 'byol', 'simsiam', 'moco', 'scan', 'selflabel', 'spice', 'deepcluster', 'supervised']
+        assert task in ['simclr', 'byol', 'simsiam', 'scan', 'spice', 'deepcluster', 'supervised']
         self.info_config = getInfoConfig(task=task, backbone=BackboneType, 
                                          datasetname=DatsetName)
+        if result_root is not None:
+            self.info_config['result_root']=result_root
+        if data_root is not None:
+            self.info_config['dataset_path']=data_root
         
         self.path_config = getPathConfig(task=task, root=self.info_config['result_root'], 
                                          db_name=self.info_config['train_db_name'], 
@@ -224,8 +105,10 @@ class ClusterConfig:
         self.criterion_config = getCriterionConfig(task=task)
         
         if task in ['simclr', 'byol', 'simsiam', 'moco', 'scan', 'deepcluster', 'selflabel', 'spice']:
-            self.model_config = getClusterModelConfig(ModelType=BackboneType, task=task)
+            self.model_config = getClusterModelConfig(ModelType=BackboneType, task=task, num_cluster=ncluster)
             self.data_config['one_hot'] = False
+            if task in ['selflabel', 'spice']:
+                self.model_config['nheads']=1
         elif task == 'supervised':
             self.model_config = getSupervisedModelConfig(ModelType=BackboneType)
             self.model_config['nheads'] = 1
@@ -236,6 +119,8 @@ class ClusterConfig:
         
         if task == 'scan':
             self.data_config['paths'] = self.path_config
+    
+            
 
 def getInfoConfig(task:str, backbone:str, datasetname:str):
     config = BaseInfoConfig
@@ -289,7 +174,7 @@ def getPathConfig(task:str, root:str, db_name:str, BackboneType:str='PointSwin',
     if task in ['simclr', 'byol', 'simsiam', 'moco']:
         config = getPretextConfig(path=path, pretext=task)
     elif task in ['scan', 'selflabel', 'deepcluster', 'spice']:
-        config = getModelCheckpoint(path=path, task=task)
+        config = getModelCheckpoint(path=path, task=task, pretext=pretext)
         pretext_config = getPretextConfig(path=path, pretext=pretext)
         for key in pretext_config.keys():
             config[key] = pretext_config[key]
@@ -330,13 +215,16 @@ def getDataConfig(task:str, data_path:str, point2img:bool=False,
     
     return config
  
-def getModelCheckpoint(path, task):
+def getModelCheckpoint(path, task, pretext=None):
     config = {}
     keywords = ['_dir', '_checkpoint', '_log', '_confusion_matrix']
     addpath = ['', 'checkpoint', 'log', 'confusion_matrix']
     for i in range(len(keywords)):
         k = '{}{}'.format(task, keywords[i])
-        config[k]=os.path.join(path, task, addpath[i])
+        if pretext is not None:
+            config[k]=os.path.join(path, task, pretext, addpath[i])
+        else:
+            config[k]=os.path.join(path, task, addpath[i])
         check_dirs(config[k])
     return config
 
@@ -380,193 +268,39 @@ def getCriterionConfig(task):
     config['criterion']=task
     return config
 
-sgd_config={
-    'lr':0.4,
-    'nesterov':False,
-    'weight_decay':0.0001,
-    'momentum':0.9
-}
+#=================================Tube Optimizing Config=================================#
 
-adam_config = {
-    'lr':0.0001,
-    'weight_decay':0.0001
-}
-
-adamw_config = {
-    'lr':0.0001,
-    'weight_decay':0.0001,
-    'betas':(0.9, 0.999),
-    'eps':1e-08
-}
-
-CosineSchedulerConfig = {
-    'scheduler':'cosine',
-    'update_cluster_head_only':False,
-    'lr_decay_rate':0.1,
-    'lr_decay_epochs':20
-}
-
-criterion_config = {
-    # simclr
-    'temperature':0.1,
-    # scan
-    'entropy_weight':2.0,
-    # selflabel, spice
-    'apply_class_balancing':True,
-    'confidence_threshold':0.4
-}
-
-'''
-# parameters of response proxy task
-
-sgd_config={
-    'lr':0.4,
-    'nesterov':False,
-    'weight_decay':0.0001,
-    'momentum':0.9
-}
-
-adam_config = {
-    'lr':0.0001,
-    'weight_decay':0.0001
-}
-
-adamw_config = {
-    'lr':0.0001,
-    'weight_decay':0.001,
-    'betas':(0.9, 0.999),
-    'eps':1e-08
-}
-
-CosineSchedulerConfig = {
-    'scheduler':'cosine',
-    'update_cluster_head_only':False,
-    'lr_decay_rate':0.01,
-    'lr_decay_epochs':20
-}
-
-criterion_config = {
-    # simclr
-    'temperature':0.1,
-    # scan
-    'entropy_weight':5.0,
-    # selflabel, spice
-    'apply_class_balancing':True,
-    'confidence_threshold':0.4
-}
-
-'''
-# class ScanConfig:
-#     def __init__(self, task='simclr', backbone_type='swin_t'):
-#         self.data_path = './data'
-#         self.result_path = './result/SCAN'
-#         self.dataset_name = 'tube'
-#         self.backbone_type = backbone_type
-#         self.result_path = os.path.join(self.result_path, backbone_type)
-#         assert task in ['simclr', 'scan', 'selflabel', 'spice', 'supervised']
-#         self.task = task # simclr, scan, selflabel
+class TubeOptimizingConfig(object):
+    def __init__(self, proxy_backbone:str='PointSwin', 
+                 cluster_backbone:str='PointSwin', 
+                 cluster_type:str='spice',
+                 pretext:str='simclr',
+                 ncluster:int=4,
+                 pretrain_path:str=None,
+                 point2img:bool=False):
+        assert cluster_type in ['spice', 'scan', 'deepkmeans', 'supervised', 'deepcluster']
+        assert pretext in ['simclr', 'byol', 'simsiam', 'supervised']
+        assert proxy_backbone in ['PointSwin', 'PointTrans']
+        assert cluster_backbone in ['PointSwin', 'PointTrans']
+        self.info = {
+            'cluster_type':cluster_type,
+            'cluster_backbone':cluster_backbone,
+            'proxy_backbone':proxy_backbone,
+            'ncluster':ncluster,
+            'pretext':pretext
+        }
         
-#         self.config = self.get_config()
+        self.ProxyConfig = get_config(task='ResponseProxy', model_type=proxy_backbone, point2img=point2img)
+        if cluster_type == 'deepkmeans':
+            self.ClustserModelConfig = {'ncluster':ncluster,
+                                        'backbone':cluster_backbone,
+                                        'pretext':pretext,
+                                        'pretrain_path':pretrain_path,
+                                        'point2img':point2img,}
+        else:
+            self.ClustserModelConfig = get_config(task=cluster_type, model_type=cluster_backbone,
+                                                  point2img=point2img, ncluster=ncluster, pretext=pretext)
+        self.TubeParams = TubeParamsConfig
+        self.optimizingset = TubeOptimizingSet
         
     
-#     def get_config(self):
-#         cfg={}
-#         cfg['setup'] = self.task
-#         cfg['dataset_path'] = self.data_path
-#         cfg['root_dir'] = self.result_path
-#         cfg['train_db_name'] = self.dataset_name
-#         cfg['val_db_name'] = self.dataset_name
-        
-#         base_dir = os.path.join(cfg['root_dir'], cfg['train_db_name'])
-#         pretext_dir = os.path.join(base_dir, 'pretext')
-#         make_path(base_dir)
-#         make_path(pretext_dir)
-        
-#         cfg['pretext_dir'] = pretext_dir
-#         cfg['pretext_checkpoint'] = os.path.join(pretext_dir, 'checkpoint.pth.tar')
-#         cfg['pretext_model'] = os.path.join(pretext_dir, 'model.pth.tar')
-        
-#         cfg['topk_neighbors_train_path'] = os.path.join(pretext_dir, 'topk-train-neighbors.npy')
-#         cfg['topk_neighbors_val_path'] = os.path.join(pretext_dir, 'topk-val-neighbors.npy')
-#         cfg['train_index'] = os.path.join(pretext_dir, 'train_indexes.npy')
-#         cfg['val_index'] = os.path.join(pretext_dir, 'val_indexes.npy')
-        
-#         if cfg['setup'] in ['scan', 'selflabel', 'spice', 'supervised']:
-#             base_dir = os.path.join(cfg['root_dir'], cfg['train_db_name'])
-#             scan_dir = os.path.join(base_dir, 'scan')
-#             selflabel_dir = os.path.join(base_dir, 'selflabel') 
-#             spice_dir = os.path.join(base_dir, 'spice')
-#             supervised_dir = os.path.join(base_dir, 'supervised')
-#             make_path(base_dir)
-#             make_path(scan_dir)
-#             make_path(selflabel_dir)
-#             make_path(spice_dir)
-#             make_path(supervised_dir)
-            
-            
-#             cfg['scan_dir'] = scan_dir
-#             cfg['scan_checkpoint'] = os.path.join(scan_dir, 'checkpoint.pth.tar')
-#             cfg['scan_model'] = os.path.join(scan_dir, 'model.pth.tar')
-            
-#             cfg['selflabel_dir'] = selflabel_dir
-#             cfg['selflabel_checkpoint'] = os.path.join(selflabel_dir, 'checkpoint.pth.tar')
-#             cfg['selflabel_model'] = os.path.join(selflabel_dir, 'model.pth.tar')
-            
-#             cfg['spice_dir'] = spice_dir
-#             cfg['spice_checkpoint'] = os.path.join(spice_dir, 'checkpoint.pth.tar')
-#             cfg['spice_model'] = os.path.join(spice_dir, 'model.pth.tar')
-            
-#             cfg['supervised_dir'] = supervised_dir
-#             cfg['supervised_checkpoint'] = os.path.join(supervised_dir, 'checkpoint.pth.tar')
-#             cfg['supervised_model'] = os.path.join(supervised_dir, 'model.pth.tar')
-            
-#         # data
-#         cfg['point2img'] = True
-#         if self.backbone_type == 'PointTransformer':
-#             cfg['point2img']=False
-#         cfg['weak_aug'] = True
-#         cfg['num_neighbors'] = 15
-#         cfg['shuffle_data'] = True
-#         cfg['val_rate'] = 0.2
-#         cfg['num_classes'] = 4
-#         #cfg['class_name'] = ['Circular', 'Diamond', 'Mixed', 'Other']
-#         cfg['class_name'] = ['圆环', '钻石', '混合', '其它']
-        
-#         # model
-#         cfg['time_step'] = 4
-#         cfg['backbone_type'] = self.backbone_type
-#         cfg['feature_dim'] = 256
-#         cfg['in_channels'] = 12
-#         cfg['cluster_num'] = 4
-#         cfg['head'] = 'mlp'
-#         cfg['nheads'] = 1
-#         cfg['contrastive_feadim']=128
-#         cfg['num_heads']=1
-        
-        
-#         # train
-#         cfg['device'] = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-#         cfg['batch_size'] = 32
-#         cfg['num_workers'] = 8
-#         cfg['epochs'] = 200
-        
-#         # criterion
-#         cfg['criterion'] = self.task
-#         cfg['temperature'] = 0.1
-#         cfg['entropy_weight'] = 5.0
-#         cfg['apply_class_balancing'] = True
-#         cfg['confidence_threshold'] = 0.4
-        
-#         # optimizer
-#         cfg['optimizer'] = 'adamw'
-#         cfg['optimizer_kwargs'] = optimizer_param(cfg['optimizer'])
-        
-#         # scheduler
-#         cfg['scheduler'] = 'cosine'
-#         cfg['update_cluster_head_only'] = False
-#         cfg['lr_decay_rate'] =0.1
-#         cfg['lr_decay_epochs'] = 20
-        
-#         return cfg
-
-

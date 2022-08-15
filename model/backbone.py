@@ -3,8 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 
-from model.PointSwinTransformer import PointSwinFeatureExtractor
-from model.PointTransformer import PointTransformerBackbone
+from model.base_model.PointSwinTransformer import PointSwinFeatureExtractor
+from model.base_model.PointTransformer import PointTransformerBackbone
 
 def resnet(in_channels=15, feature_dim=512, model_type='resnet18', **kwargs):
     #assert model_type in ['resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']

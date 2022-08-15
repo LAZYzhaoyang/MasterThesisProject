@@ -37,6 +37,8 @@ def ToNumpy(data):
             data = data.cpu().numpy()
         except:
             data = data.detach().cpu().numpy()
+    elif type(data)== list:
+        data = np.array(data)
     return data
 
 # node utils
@@ -84,6 +86,23 @@ def listnode2img(node, img_h=64):
     node = squeeze_node(node)
     
     return node
+
+def normalize(d, r, no_buttom=False):
+    b, u = r
+    if no_buttom:
+        d = d/u
+    else:
+        d = (d-b)/(u-b)    
+    return d
+
+def unnormalize(d, r, no_buttom=False):
+    b, u = r
+    if no_buttom:
+        d = d*u
+    else:
+        #d = (d-b)/(u-b)
+        d = d*(u-b)+b    
+    return d
 
 # one hot label
 def num2onehot(num, classnum):

@@ -3,7 +3,7 @@ from model.ResponseProxyModel import getProxyModel, save_ResponseProxyModel, loa
 from model.SupervisedModel import getSupervisedModel, saveSupervisedModel, loadSupervisedModel
 
 def getModel(CFG):
-    task =CFG.model_config['task']
+    task = CFG.model_config['task']
     if task == 'ResponseProxy':
         model = getProxyModel(config=CFG.model_config, model_type=CFG.model_type)
     elif task in ['supervised']:

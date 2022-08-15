@@ -18,10 +18,8 @@ def get_criterion(p):
         criterion = SCANLoss(entropy_weight = p['entropy_weight'])
     elif p['criterion'] == 'selflabel':
         criterion = ConfidenceBasedCE(p['confidence_threshold'], p['apply_class_balancing'])
-    elif p['criterion'] in ['supervised', 'deepcluster']:
+    elif p['criterion'] in ['supervised', 'deepcluster', 'spice']:
         criterion = nn.BCEWithLogitsLoss()
-    elif p['criterion'] == 'spice':
-        criterion = ConfidenceBasedCE(p['confidence_threshold'], p['apply_class_balancing'])
     else:
         raise ValueError('Invalid criterion {}'.format(p['criterion']))
 

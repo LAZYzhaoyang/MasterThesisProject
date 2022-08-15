@@ -1,3 +1,4 @@
+from math import ceil
 import os
 import time
 import numpy as np
@@ -35,16 +36,33 @@ from model.ClusteringModel import DeepClusterCenter
 from config.configs import ClusterConfig
 
 #===================================Training of Response Proxy Model===================================#
-def train_proxy(model_type='PointSwin', point2img=False, opti='adamw'):
+def train_proxy(model_type='PointSwin', point2img=False, opti='adamw', batch_size:int=16, learn_rate=0.0001, data_root=None, result_root=None):
     # create config
     task='ResponseProxy'
-    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti)
+    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, data_root=data_root, result_root=result_root)
+    config.train_config['lr']=learn_rate
+    config.train_config['train_loader']['BatchSize']=batch_size
+    config.train_config['val_loader']['BatchSize']=batch_size
+    
     train_config = config.train_config
     paths = config.path_config
     model_config = config.model_config
     data_config = config.data_config
     optimizer_config = config.optimizer_config
     
+    print(colored('Info Config:', 'blue'))
+    print(colored(config.info_config, 'yellow'))
+    print(colored('Model Config:', 'blue'))
+    print(colored(model_config, 'yellow'))
+    print(colored('Train Config:', 'blue'))
+    print(colored(train_config, 'yellow'))
+    print(colored('Paths:', 'blue'))
+    print(colored(paths, 'yellow'))
+    print(colored('Data Config:', 'blue'))
+    print(colored(data_config, 'yellow'))
+    print(colored('Optimizer Config:', 'blue'))
+    print(colored(optimizer_config, 'yellow'))
+
     # create a tensorboard
     writer = SummaryWriter(config.path_config['Log'])
     model_name = config.model_name
@@ -95,7 +113,11 @@ def train_proxy(model_type='PointSwin', point2img=False, opti='adamw'):
         idx=0
         load_time = time.time()
         train_img_index = 0
-        for init_node, gt_node, param, res in tqdm(train_loader):
+        for batch in tqdm(train_loader):
+            init_node = batch['init_node']
+            gt_node = batch['out_node']
+            param = batch['params']
+            res = batch['res']
             train_time = time.time()
             train_loader_size = train_loader.__len__()
             
@@ -173,7 +195,11 @@ def train_proxy(model_type='PointSwin', point2img=False, opti='adamw'):
         pred_used_times = []
         pred_result = []
         gt_result = []
-        for init_node, gt_node, param, res in tqdm(val_loader):
+        for batch in tqdm(val_loader):
+            init_node = batch['init_node']
+            gt_node = batch['out_node']
+            param = batch['params']
+            res = batch['res']
             #optimizer.zero_grad()
             # save time
             
@@ -259,9 +285,13 @@ def train_proxy(model_type='PointSwin', point2img=False, opti='adamw'):
     logger.info('best Loss: {:.6f} in epoch: {}'.format(best_loss, best_epoch))
 
 #===================================Training of Supervised Model===================================#
-def train_supervised(model_type='PointSwin', point2img=False, opti='adamw'):
+def train_supervised(model_type='PointSwin', point2img=False, opti='adamw', batch_size:int=16, learn_rate=0.0001, data_root=None, result_root=None):
     task='supervised'
-    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti)
+    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, data_root=data_root, result_root=result_root)
+    config.optimizer_config['optimizer_kwargs']['lr']=learn_rate
+    config.train_config['train_loader']['BatchSize']=batch_size
+    config.train_config['val_loader']['BatchSize']=batch_size
+    
     train_config = config.train_config
     paths = config.path_config
     model_config = config.model_config
@@ -429,9 +459,13 @@ def supervised_one_epoch(train_loader, model, criterion, optimizer, epoch, logge
             
 
 #===================================Training of Scan Model===================================#
-def train_scan(model_type='PointSwin', point2img=False, opti='adamw', pretext='simclr'):
+def train_scan(model_type='PointSwin', ncluster:int=4, point2img=False, opti='adamw', pretext='simclr', batch_size:int=16, learn_rate=0.0001, data_root=None, result_root=None):
     task = 'scan'
-    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, pretext=pretext)
+    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, pretext=pretext, data_root=data_root, result_root=result_root)
+    config.optimizer_config['optimizer_kwargs']['lr']=learn_rate
+    config.train_config['train_loader']['BatchSize']=batch_size
+    config.train_config['val_loader']['BatchSize']=batch_size
+    
     train_config = config.train_config
     paths = config.path_config
     model_config = config.model_config
@@ -660,16 +694,353 @@ def scan_one_epoch(train_loader, model, criterion, optimizer, epoch, logger, upd
             infomation = 'Epoch: [{:>2d}] {:>4d}/{:>4d} items || Loss: {:.8e}'.format(epoch,i+1,len(train_loader), total_loss.item())
             logger.info(infomation)
 
-def train_spice():
-    pass
+#===================================Training of Spice Model===================================#
+def train_spice(model_type='PointSwin', ncluster:int=4, point2img=False, opti='adamw', pretext='byol', batch_size:int=16, learn_rate=0.0001, data_root=None, result_root=None):
+    task = 'spice'
+    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, pretext=pretext, data_root=data_root, result_root=result_root)
+    config.optimizer_config['optimizer_kwargs']['lr']=learn_rate
+    config.train_config['train_loader']['BatchSize']=batch_size
+    config.train_config['val_loader']['BatchSize']=batch_size
+    
+    train_config = config.train_config
+    paths = config.path_config
+    model_config = config.model_config
+    data_config = config.data_config
+    optimizer_config = config.optimizer_config
+    criterion_config = config.criterion_config
+    
+    epoch_start=0
+    # print cfg
+    print(colored('Info Config:', 'blue'))
+    print(colored(config.info_config, 'yellow'))
+    print(colored('Model Config:', 'blue'))
+    print(colored(model_config, 'yellow'))
+    print(colored('Train Config:', 'blue'))
+    print(colored(train_config, 'yellow'))
+    print(colored('Paths:', 'blue'))
+    print(colored(paths, 'yellow'))
+    print(colored('Data Config:', 'blue'))
+    print(colored(data_config, 'yellow'))
+    print(colored('Optimizer Config:', 'blue'))
+    print(colored(optimizer_config, 'yellow'))
+    print(colored('Criterion Config:', 'blue'))
+    print(colored(criterion_config, 'yellow'))
+    
+    # CUDNN
+    torch.backends.cudnn.benchmark = True
+    
+    # create and load model
+    print(colored('Get model', 'blue'))
+    spicemodel = getModel(config)
+    last_model_file = os.path.join(paths['{}_checkpoint'.format(task)],'{}_last_epoch.pth'.format(task+model_type))
+    backbone_file = os.path.join(paths['{}_checkpoint'.format(pretext)], '{}_last_epoch.pth'.format(pretext+model_type))
+    if os.path.exists(last_model_file):
+        spicemodel, epoch_start = loadModel(net=spicemodel,
+                                            save_path=paths['{}_checkpoint'.format(task)],
+                                            file_class='last',
+                                            model_name=task+model_type, 
+                                            task=task)
+        print(colored('Restart from checkpoint {}'.format(paths['{}_dir'.format(task)]), 'blue'))
+    elif os.path.exists(backbone_file):
+        spicemodel, _ = loadModel(net=spicemodel,
+                                  save_path=paths['{}_checkpoint'.format(pretext)],
+                                  file_class='last',
+                                  model_name=pretext+model_type,
+                                  task=task,
+                                  load_backbone_only=True)
+        print(colored('Load pre-train backbone from {} checkpoint {}'.format(pretext, paths['{}_dir'.format(pretext)]), 'blue'))
+        #print(colored('WARNING: DeepCl will only update the cluster head', 'red'))
+    else:
+        print(colored('Train without pre-train backbone. ', 'red'))
+    
+    # to cuda
+    device = train_config['device']
+    spicemodel = spicemodel.to(device=device)
+    
+    # create logger
+    logger = get_logger(path=paths['{}_log'.format(task)], filename='{}Model_train.log'.format(task))
+    
+    # loss
+    print(colored('Get loss', 'blue'))
+    criterion = get_criterion(criterion_config)
+    criterion.cuda()
+    # optimizer
+    print(colored('Get optimizer', 'blue'))
+    optimizer = get_optimizer(optimizer_config, spicemodel, nheads=model_config['nheads'], cluster_head_only=True)
+    
+    # create dataset
+    dataset = getDataset(data_config)
+    if os.path.exists(paths['train_index']) and os.path.exists(paths['val_index']):
+        splited_out = splitDataset(dataset=dataset, cfg=config, use_pretrain_indexes=True)
+    else:
+        splited_out = splitDataset(dataset=dataset, cfg=config)
+    train_loader, val_loader = splited_out['train_dataloader'], splited_out['val_dataloader']
+    train_num, val_num = splited_out['train_num'], splited_out['val_num']
+    train_indices, val_indices = splited_out['train_indices'], splited_out['val_indices']
+    print(colored('Get dataset and dataloaders', 'blue'))
+    
+    # Main loop
+    print(colored('Starting main loop', 'blue'))
+    start_time = time.time()
+    best_acc = 0
+    best_epoch = 0
+    
+    stats_path = os.path.join(paths['{}_log'.format(task)], 'stats')
+    check_dirs(stats_path)
+    
+    for epoch in range(epoch_start, epoch_start+train_config['epochs']):
+        print(colored('Epoch %d/%d' %(epoch+1, train_config['epochs']), 'yellow'))
+        print(colored('-'*15, 'yellow'))
+        
+        epoch_start_time = time.time()
 
+        # Adjust lr
+        lr = adjust_learning_rate(config, optimizer, epoch)
+        print('Adjusted learning rate to {:.8e}'.format(lr))
+        
+        # Train
+        print('Train ...')
+        spice_one_epoch(dataset=dataset, train_indices=train_indices, model=spicemodel, criterion=criterion, 
+                        optimizer=optimizer, device=device, epoch=epoch, logger=logger, num_repeat=4, nhead=1, 
+                        batch_size=train_config['train_loader']['BatchSize'],
+                        update_cluster_head_only=train_config['update_cluster_head_only'])
+        
+        # Evaluate 
+        print('Make prediction on training set ...')
+        predictions = get_predictions(config, train_loader, spicemodel)
+
+        clustering_stats = hungarian_evaluate(0, predictions, compute_confusion_matrix=False)
+        print('acc:{:.8f}, ari:{:.8f}, nmi:{:.8f}'.format(clustering_stats['ACC'], clustering_stats['ARI'],clustering_stats['NMI']))
+        print(clustering_stats['confusion_matrix'])
+        train_info = 'Epoch: [{:>2d}/{:>2d}] || acc:{:.8f}, ari:{:.8f}, nmi:{:.8f}'.format(epoch, epoch_start + train_config['epochs'], clustering_stats['ACC'], clustering_stats['ARI'],clustering_stats['NMI'])
+        logger.info(train_info)
+        # Evaluate 
+        print('Make prediction on validation set ...')
+        predictions = get_predictions(config, val_loader, spicemodel)
+
+        clustering_stats = hungarian_evaluate(0, predictions, compute_confusion_matrix=False)
+        print('acc:{:.8f}, ari:{:.8f}, nmi:{:.8f}'.format(clustering_stats['ACC'], clustering_stats['ARI'],clustering_stats['NMI']))
+        print(clustering_stats['confusion_matrix'])
+        
+        total_time=time.time() - start_time
+        hours, mins, sec = time2hms(total_time)
+        infomation = 'Epoch: [{:>2d}/{:>2d}] || Time: {:>3d} H {:>2d} M {:.3f} s || ACC: {:.8f} || ARI: {:.8f} || NMI: {:.8f} || epoch time: {:.3f} sec'.format(
+                epoch, epoch_start + train_config['epochs'], hours, mins, sec, clustering_stats['ACC'], clustering_stats['ARI'], clustering_stats['NMI'], time.time()-epoch_start_time)
+        
+        logger.info(infomation)
+        acc = clustering_stats['ACC']
+        
+        # Checkpoint
+        print('Checkpoint ...')
+        saveModel(net=spicemodel, save_path=paths['{}_checkpoint'.format(task)], epoch=epoch,
+                  filename='{}_last_epoch.pth'.format(task+model_type), optimizer=optimizer, task=task)
+        if (epoch+1)%train_config['save_model_epoch']==0:
+            saveModel(net=spicemodel, save_path=paths['{}_checkpoint'.format(task)], epoch=epoch,
+                      filename='{}_checkpoint-epoch{}.pth'.format(task+model_type, epoch), 
+                      optimizer=optimizer, task=task)
+            save_clustering_stats(clustering_stats=clustering_stats, path=stats_path, filename='stats_epoch{}'.format(epoch))
+        if acc>=best_acc:
+            saveModel(net=spicemodel, save_path=paths['{}_checkpoint'.format(task)], epoch=epoch,
+                      filename='{}_best.pth'.format(task+model_type), optimizer=optimizer, task=task)
+            save_clustering_stats(clustering_stats=clustering_stats, path=stats_path, filename='best_stats')
+            best_acc = acc
+            best_epoch = epoch
+    
+    # Evaluate and save the final model
+    print(colored('Evaluate model at the end', 'blue'))
+    
+    last_model_file = os.path.join(config.path_config['{}_checkpoint'.format(task)],'{}_last_epoch.pth'.format(task+model_type))
+    if os.path.exists(last_model_file):
+        spicemodel, _ = loadModel(net=spicemodel,
+                                  save_path=paths['{}_checkpoint'.format(task)],
+                                  file_class='last',
+                                  model_name=task+model_type, 
+                                  task=task)
+    
+    predictions = get_predictions(config, val_loader, spicemodel)
+    clustering_stats = hungarian_evaluate(0, predictions, 
+                            class_names=data_config['class_name'], 
+                            compute_confusion_matrix=True, 
+                            confusion_matrix_file=os.path.join(paths['{}_confusion_matrix'.format(task)], 'confusion_matrix.png'))
+    print(clustering_stats)
+    save_clustering_stats(clustering_stats=clustering_stats, path=stats_path, filename='last_stats')
+    
+    bestinfo = 'best acc: {:.6f} in epoch {:>4d}'.format(best_acc, best_epoch)
+    logger.info(bestinfo)
+        
+def spice_one_epoch(dataset, train_indices, model, criterion, optimizer, 
+                    device, epoch:int, logger, num_repeat:int=2, nhead:int=1, 
+                    batch_size:int=8, update_cluster_head_only=False):
+    # get pseudo label
+    scores, features = getScoreAndFeature(dataset=dataset, indices=train_indices, model=model, 
+                                          device=device, nhead=nhead, batch_size=batch_size)
+    b, ncls = scores[0].size()
+    _, dim = features.size()
+    num_per_cluster = b//ncls
+    # define center num and pseudo num
+    center_ratio = 0.5
+    select_ratio = 0.25
+    center_k = int(num_per_cluster*select_ratio*center_ratio)
+    pseudo_k = int(num_per_cluster*select_ratio)
+    
+    scores=scores[0] 
+    centers = getPseudoCenter(scores=scores, features=features, k=center_k)
+    pseudo_labs, pseudo_indices = getPseudoLabel(centers=centers, features=features, k=pseudo_k, train_indices=train_indices)
+    pn, _ = pseudo_labs.size()
+    left_num = pn%batch_size
+    pseudo_labs = pseudo_labs[:-left_num]
+    pseudo_indices = pseudo_indices[:-left_num]
+
+    # prepare for train    
+    losses = AverageMeter('Loss', ':.6e')
+    num_pseudo = len(pseudo_indices)
+    backward_num = num_repeat*ceil(num_pseudo//batch_size)
+    progress = ProgressMeter(backward_num,
+        [losses],
+        prefix="Epoch: [{}]".format(epoch))
+    # train
+    model.train()
+    back_i = 1
+    for _ in range(num_repeat):
+        shuffle_indices = list(range(num_pseudo))
+        np.random.shuffle(shuffle_indices)
+        batch = []
+        batch_lab = []
+        iter_num = 1
+        for i in range(num_pseudo):
+            truth_psei = pseudo_indices[shuffle_indices[i]]
+            pse_lab = pseudo_labs[shuffle_indices[i]]
+            pse_lab = torch.unsqueeze(pse_lab, dim=0)
+            pse_lab = pse_lab.to(device=device, non_blocking=True)
+            
+            item = dataset.__getitem__(truth_psei)
+            node = ToTensor(item['strong_trans']).to(device=device, non_blocking=True)
+            node = torch.unsqueeze(node, dim=0)
+            
+            batch.append(node)
+            batch_lab.append(pse_lab)
+            
+            if iter_num%batch_size==0 or iter_num==num_pseudo:
+                batch = torch.cat(batch, dim=0)
+                batch_lab = torch.cat(batch_lab, dim=0)
+                #print(batch.size())
+                if update_cluster_head_only:
+                    with torch.no_grad():
+                        fea = model(batch, forward_pass='backbone')
+                    prob = model(fea, forward_pass='head')
+                else:
+                    prob = model(batch)
+                prob = prob[0]
+                loss = criterion(prob, batch_lab)
+                losses.update(loss.item())
+                
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                
+                if back_i % 100 == 0 or back_i==backward_num:
+                    progress.display(back_i)
+                    infomation = 'Epoch: [{:>2d}] {:>4d}/{:>4d} items || Loss: {:.8e}'.format(epoch,back_i,backward_num, loss.item())
+                    logger.info(infomation)
+            
+                batch=[]
+                batch_lab=[]
+                back_i+=1
+            iter_num+=1
+    print('Finish epoch {}'.format(epoch))
+                
+def getScoreAndFeature(dataset, indices, model, device, nhead:int=1, batch_size:int=8):
+    # dataset: torch.utils.data.Dataset, data_loader.subdataset.SpiceDataset
+    # indices: list or numpy.array, [train_num]
+    # model: model.ClusteringModel.ClusteringModel
+    # device: torch.device('cuda') or torch.device('cpu')
+    # nhead: int
+    # batch_size: int
+    # return:
+    #       scores: list [torch.Tensor [b, ncls], ...] len(scores)=nhead
+    #       features: torch.Tensor [b, dim]
+    model.eval()   
+    num = 1
+    #keys=['node', 'weak_trans', 'strong_trans']
+    keys=['node', 'weak_trans']
+    batch = [[] for _ in range(len(keys))]
+    
+    scores = [[] for _ in range(nhead)]
+    features = []
+    
+    for i in indices:
+        item = dataset.__getitem__(i)
+        for j in range(len(keys)):
+            node = item[keys[j]]
+            node = ToTensor(node).to(device=device, non_blocking=True)
+            node = torch.unsqueeze(node, dim=0)
+            batch[j].append(node)
+        if num%batch_size==0 or num==len(indices):
+            for k in range(len(keys)):
+                batch[k] = torch.cat(batch[k], dim=0)
+            with torch.no_grad():
+                sc = model(batch[0])
+                fea = model(batch[1], forward_pass='backbone')
+            features.append(fea)
+            for isc in range(len(scores)):
+                scores[isc].append(sc[isc])
+            batch = [[] for _ in range(len(keys))]
+            
+        num+=1
+    features = torch.cat(features,dim=0)
+    for i in range(len(scores)):
+        scores[i] = torch.cat(scores[i], dim=0)
+    
+    return scores, features
+
+def getPseudoCenter(scores, features, k):
+    b, ncls = scores.size()
+    if k>=b:
+        k=b//2
+    _, topki = torch.topk(scores, k=k, dim=0)
+    centers = []
+    for i in range(ncls):
+        c = torch.mean(features[topki[:,i]], dim=0).unsqueeze(dim=0)
+        centers.append(c)
+    centers = torch.cat(centers, dim=0)
+    
+    return centers
+
+def getPseudoLabel(centers, features, train_indices, k:int):
+    # centers: torch.Tensor [ncls, dim]
+    # features: torch.Tensor [b, dim]
+    # return:
+    #    pseudo label: torch.Tensor [n, ncls]
+    #    pseudo indices: np.array [n]
+    b, _ = features.size()
+    ncls, _ = centers.size()
+    
+    cls_center = torch.unsqueeze(centers, dim=0) # [1, ncls, dim]
+    unsq_fea = torch.unsqueeze(features, dim=1) # [b, 1, dim]
+    dis = torch.sqrt(torch.sum((unsq_fea-cls_center)**2, dim=-1)) # [b, ncls]
+    _, topki = torch.topk(dis, k=k, dim=0, largest=False)
+    
+    pseudo_lab = torch.zeros((b,ncls))
+    for i in range(ncls):
+        pseudo_lab[topki[:,i],i]=1
+    sum_pseudo = torch.sum(pseudo_lab, dim=-1)
+    new_indices = ToNumpy(train_indices)[sum_pseudo!=0]
+    pseudo_lab = pseudo_lab[sum_pseudo!=0]
+    
+    return pseudo_lab, new_indices
+
+#===================================Training of KMeans Model===================================#
 def train_kmeans():
     pass
 
 #===================================Training of Simclr Model===================================#
-def train_simclr(model_type='PointSwin', point2img=False, opti='adamw'):
+def train_simclr(model_type='PointSwin', point2img=False, opti='adamw', batch_size:int=16, learn_rate=0.0001, data_root=None, result_root=None):
     task='simclr'
-    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti)
+    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, data_root=data_root, result_root=result_root)
+    config.optimizer_config['optimizer_kwargs']['lr']=learn_rate
+    config.train_config['train_loader']['BatchSize']=batch_size
+    config.train_config['val_loader']['BatchSize']=batch_size
+    
     train_config = config.train_config
     paths = config.path_config
     model_config = config.model_config
@@ -858,9 +1229,13 @@ def simclr_one_epoch(train_loader, model, criterion, optimizer, epoch, logger, p
             logger.info(infomation)
 
 #===================================Training of BYOL Model===================================#
-def train_byol(model_type='PointSwin', point2img=False, opti='adamw'):
+def train_byol(model_type='PointSwin', point2img=False, opti='adamw', batch_size:int=16, learn_rate=0.0001, data_root=None, result_root=None):
     task='byol'
-    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti)
+    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, data_root=data_root, result_root=result_root)
+    config.optimizer_config['optimizer_kwargs']['lr']=learn_rate
+    config.train_config['train_loader']['BatchSize']=batch_size
+    config.train_config['val_loader']['BatchSize']=batch_size
+    
     train_config = config.train_config
     paths = config.path_config
     model_config = config.model_config
@@ -1048,9 +1423,13 @@ def byol_one_epoch(train_loader, model, target_model, criterion, optimizer, epoc
     return model, target_model
  
 #===================================Training of Simsiam Model===================================#
-def train_simsiam(model_type='PointSwin', point2img=False, opti='adamw'):
+def train_simsiam(model_type='PointSwin', point2img=False, opti='adamw', batch_size:int=16, learn_rate=0.0001, data_root=None, result_root=None):
     task='simsiam'
-    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti)
+    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, data_root=data_root, result_root=result_root)
+    config.optimizer_config['optimizer_kwargs']['lr']=learn_rate
+    config.train_config['train_loader']['BatchSize']=batch_size
+    config.train_config['val_loader']['BatchSize']=batch_size
+    
     train_config = config.train_config
     paths = config.path_config
     model_config = config.model_config
@@ -1234,10 +1613,14 @@ def simsiam_one_epoch(train_loader, model, criterion, optimizer, epoch, logger):
             infomation = 'Epoch: [{:>2d}] {:>4d}/{:>4d} items || Loss: {:.8e}'.format(epoch,i+1,len(train_loader), loss.item())
             logger.info(infomation)
 
-
-def train_deepcluster(model_type='PointSwin', point2img=False, opti='adamw', pretext='byol'):
+#===================================Training of Deepcluster Model===================================#
+def train_deepcluster(model_type='PointSwin', ncluster:int=4, point2img=False, opti='adamw', pretext='byol', batch_size:int=16, learn_rate=0.0001, data_root=None, result_root=None):
     task = 'deepcluster'
-    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, pretext=pretext)
+    config = get_config(task=task, model_type=model_type, point2img=point2img, opti=opti, pretext=pretext, data_root=data_root, result_root=result_root)
+    config.optimizer_config['optimizer_kwargs']['lr']=learn_rate
+    config.train_config['train_loader']['BatchSize']=batch_size
+    config.train_config['val_loader']['BatchSize']=batch_size
+    
     train_config = config.train_config
     paths = config.path_config
     model_config = config.model_config
@@ -1416,9 +1799,6 @@ def train_deepcluster(model_type='PointSwin', point2img=False, opti='adamw', pre
     
     bestinfo = 'best acc: {:.6f} in epoch {:>4d}'.format(best_acc, best_epoch)
     logger.info(bestinfo)
-    
-    
-    
     
 def train_deepcluster_one_epoch(train_loader, model, deepcenter:DeepClusterCenter, criterion, optimizer, epoch, logger):
     losses = AverageMeter('Loss', ':.8e')

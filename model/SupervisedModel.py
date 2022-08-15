@@ -1,5 +1,5 @@
-from .PointSwinTransformer import PointSwin
-from .PointTransformer import PointTransformerCls
+from .base_model.PointSwinTransformer import PointSwin
+from .base_model.PointTransformer import PointTransformerCls
 import torch
 import os
 

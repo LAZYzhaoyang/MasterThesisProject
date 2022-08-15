@@ -85,43 +85,7 @@ class ClusteringModel(nn.Module):
         return out
 
 
-# class DeepCluster(nn.Module):
-#     def __init__(self, backbone, nclusters):
-#         super().__init__()
-#         self.backbone = backbone['backbone']
-#         self.backbone_dim = backbone['dim']
-#         self.cluster_head = nn.Sequential(
-#                     nn.Linear(self.backbone_dim, self.backbone_dim),
-#                     nn.BatchNorm1d(self.backbone_dim),
-#                     nn.ReLU(), 
-#                     nn.Linear(self.backbone_dim, nclusters))
-        
-#         self.cluster_centers = torch.randn((nclusters, self.backbone_dim))
-#         self.features = []
-#         self.selflabel = []
-        
-#     def forward(self, x, forward_pass='default'):
-#         if forward_pass == 'default':
-#             features = self.backbone(x)
-#             #features = F.normalize(features, dim = 1)
-#             out = self.cluster_head(features)
 
-#         elif forward_pass == 'backbone':
-#             out = self.backbone(x)
-#             #out = F.normalize(out, dim = 1)
-
-#         elif forward_pass == 'head':
-#             out = self.cluster_head(x) 
-
-#         elif forward_pass == 'return_all':
-#             features = self.backbone(x)
-#             #features = F.normalize(features, dim = 1)
-#             out = {'features': features, 'output': self.cluster_head(features)}
-        
-#         else:
-#             raise ValueError('Invalid forward pass {}'.format(forward_pass))        
-
-#         return out
         
 class DeepClusterCenter:
     def __init__(self, nclusters:int, loader:torch.utils.data.DataLoader, 
@@ -228,7 +192,7 @@ def getClusterModel(config):
     if config['task'] in ['simclr', 'simsiam', 'byol', 'moco']:
          model = ContrastiveModel(backbone, head=config['head'], features_dim=config['contrastive_feadim'])
     elif config['task'] in ['scan', 'selflabel', 'deepcluster', 'spice']:
-        if config['task'] == 'selflabel':
+        if config['task'] in ['selflabel', 'spice']:
             assert(config['nheads'] == 1)
         model = ClusteringModel(backbone, config['num_cluster'], config['nheads'])
     else:
