@@ -16,7 +16,7 @@ from torch.utils.data import Dataset
 import albumentations as A
 
 from .data_aug import get_transformers
-from utils.toollib import squeeze_node, unsqueeze_node, num2onehot, random_index
+from ..utils.toollib import squeeze_node, unsqueeze_node, num2onehot, random_index
 
 class Response_DataLoader(Dataset):
     def __init__(self, data_path, point2img=True, npoint=4096):
