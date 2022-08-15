@@ -16,7 +16,7 @@ from pymoo.optimize import minimize
 #from .plotlib import plotPointCloud, plotContrastNode, contrast_res
 from .toollib import ToNumpy, ToTensor, random_index, normalize, unnormalize
 from .modellib import getModel, loadModel
-from config.configs import get_config, TubeOptimizingConfig
+from ..config.configs import get_config, TubeOptimizingConfig
 
 from .kmeanslib import PretrainKmeans
 
