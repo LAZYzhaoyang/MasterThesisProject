@@ -1,3 +1,9 @@
+"""
+# author: Zhaoyang Li
+# 2022 08 15
+# Central South University
+"""
+
 from ..config.configs import get_config
 from .modellib import getModel, loadModel
 from .datalib import getDataset, splitDataset

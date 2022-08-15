@@ -1,3 +1,8 @@
+"""
+# author: Zhaoyang Li
+# 2022 08 15
+# Central South University
+"""
 from matplotlib.cbook import flatten
 import torch
 import torch.nn as nn

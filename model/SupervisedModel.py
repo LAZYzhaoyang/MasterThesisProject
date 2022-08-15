@@ -1,3 +1,9 @@
+"""
+# author: Zhaoyang Li
+# 2022 08 15
+# Central South University
+"""
+
 from .base_model.PointSwinTransformer import PointSwin
 from .base_model.PointTransformer import PointTransformerCls
 import torch

@@ -1,3 +1,8 @@
+"""
+# author: Zhaoyang Li
+# 2022 08 15
+# Central South University
+"""
 import torch
 import math
 import torch.nn as nn

@@ -1,4 +1,9 @@
-from math import ceil
+"""
+# author: Zhaoyang Li
+# 2022 08 15
+# Central South University
+"""
+
 import os
 import time
 import numpy as np
@@ -7,6 +12,7 @@ import logging
 from logging import handlers
 from termcolor import colored
 import copy
+from math import ceil
 
 import torch
 import torchvision

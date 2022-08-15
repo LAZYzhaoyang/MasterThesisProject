@@ -1,3 +1,8 @@
+"""
+# author: Zhaoyang Li
+# 2022 08 15
+# Central South University
+"""
 from ..model.ClusteringModel import getClusterModel, saveClusterModel, loadClusterModel
 from ..model.ResponseProxyModel import getProxyModel, save_ResponseProxyModel, load_ResponseProxyModel
 from ..model.SupervisedModel import getSupervisedModel, saveSupervisedModel, loadSupervisedModel

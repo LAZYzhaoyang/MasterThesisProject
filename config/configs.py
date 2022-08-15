@@ -1,4 +1,9 @@
 # coding=utf-8
+"""
+# author: Zhaoyang Li
+# 2022 08 15
+# Central South University
+"""
 import os
 
 from ..utils.toollib import check_dirs

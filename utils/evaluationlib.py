@@ -1,4 +1,8 @@
-from sys import implementation
+"""
+# author: Zhaoyang Li
+# 2022 08 15
+# Central South University
+"""
 import numpy as np
 import torch
 import torch.nn.functional as F

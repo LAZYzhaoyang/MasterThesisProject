@@ -1,6 +1,7 @@
 """
-Author: Wouter Van Gansbeke, Simon Vandenhende
-Licensed under the CC BY-NC 4.0 license (https://creativecommons.org/licenses/by-nc/4.0/)
+# author: Zhaoyang Li
+# 2022 08 15
+# Central South University
 """
 import numpy as np
 import torch

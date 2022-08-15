@@ -1,3 +1,8 @@
+"""
+# author: Zhaoyang Li
+# 2022 08 15
+# Central South University
+"""
 from sklearn.utils import shuffle
 from ..data_loader.base_dataset import Response_DataLoader, PointCloudDataset
 from ..data_loader.subdataset import AugmentedDataset, NeighborsDataset, \
