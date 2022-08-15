@@ -1,7 +1,7 @@
 # coding=utf-8
 import os
 
-from utils.toollib import check_dirs
+from ..utils.toollib import check_dirs
 from .base_config import *
 
 #=================================Tools=================================#
