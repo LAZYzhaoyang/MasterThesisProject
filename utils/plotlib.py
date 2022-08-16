@@ -181,10 +181,11 @@ def contrast_res(pred_res, gt_res, saveroot:str, epoch:int):
     # pred_res: [b, dim], gt_res: [b, dim]
     pred_res = ToNumpy(pred_res)
     gt_res = ToNumpy(gt_res)
-    
+    savepath = os.path.join(saveroot, 'epoch_{}'.format(epoch))
+    check_dirs(savepath)
     figlist = ['PCF', 'SEA']
     for i in range(len(figlist)):
-        filename = os.path.join(saveroot, 'epoch_{}'.format(epoch), 'pred_{}_and_gt_{}.png'.format(figlist[i], figlist[i]))
+        filename = os.path.join(savepath, 'pred_{}_and_gt_{}.png'.format(figlist[i], figlist[i]))
         contrast_xy(x=pred_res[:,i], y=gt_res[:,i], 
                     filename=filename, 
                     xlabel='Pred_{}'.format(figlist[i]),
