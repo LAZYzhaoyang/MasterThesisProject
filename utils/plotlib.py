@@ -26,6 +26,7 @@ DefaultFont = {'family': 'Times New Roman',
 def plot_node(node, savepath, figsize=(10,10), flatten=True):
     # node: [c, l] or [t,c,l]
     node = ToNumpy(node)
+    check_dirs(savepath)
     if flatten:
         node = flatten_node(node)
     if len(node.shape)==2:
@@ -136,6 +137,7 @@ def contrast_node(pred_node, gt_node, saveroot:str, index:int=0, flatten=True):
         gt_node = flatten_node(gt_node)
     # pred_node, gt_node: [n, t*c, l] or [t*c, l]
     figlist = ['x','y','z']
+    check_dirs(saveroot)
     if len(pred_node.shape)==2:
         px = [pred_node[0,:], pred_node[1,:], pred_node[2,:]]
         gx = [gt_node[0,:], gt_node[1,:], gt_node[2,:]]
