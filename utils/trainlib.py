@@ -42,14 +42,14 @@ from ..model.ClusteringModel import DeepClusterCenter
 #===================================Main Train Function===================================#
 def main_train(task:str='ResponseProxy', model_type:str='PointSwin', 
                ncluster:int=4, point2img=False, opti='adamw', 
-               pretext:str='byol', epochs:int=200, val_rate=0.2, 
-               batch_size:int=16, learn_rate=0.0001, feature_dim:int=256, 
+               pretext:str='byol', epochs:int=200, val_rate=0.2, batch_size:int=16, 
+               num_worker:int=4, learn_rate=0.0001, feature_dim:int=256, 
                save_model_epoch:int=50, data_root=None, result_root=None):
     CFG = get_task_config(task=task, model_type=model_type, ncluster=ncluster,
                           point2img=point2img, opti=opti, pretext=pretext, 
                           epochs=epochs, val_rate=val_rate, batch_size=batch_size,
-                          learn_rate=learn_rate, feature_dim=feature_dim, 
-                          save_model_epoch=save_model_epoch, 
+                          num_worker=num_worker, learn_rate=learn_rate, 
+                          feature_dim=feature_dim, save_model_epoch=save_model_epoch, 
                           data_root=data_root, result_root=result_root)
     if task == 'ResponseProxy':
         train_proxy(config=CFG)
@@ -74,8 +74,9 @@ def main_train(task:str='ResponseProxy', model_type:str='PointSwin',
 def get_task_config(task:str='ResponseProxy', model_type:str='PointSwin', 
                     ncluster:int=4, point2img=False, opti='adamw', 
                     pretext:str='byol', epochs:int=200, val_rate=0.2, 
-                    batch_size:int=16, learn_rate=0.0001, feature_dim:int=256, 
-                    save_model_epoch:int=50, data_root=None, result_root=None):
+                    batch_size:int=16, num_worker:int=4, learn_rate=0.0001, 
+                    feature_dim:int=256, save_model_epoch:int=50, 
+                    data_root=None, result_root=None):
     config = get_config(task=task, ncluster=ncluster, model_type=model_type, opti=opti, 
                         point2img=point2img, data_root=data_root, result_root=result_root,
                         pretext=pretext, feature_dim=feature_dim)
@@ -87,6 +88,9 @@ def get_task_config(task:str='ResponseProxy', model_type:str='PointSwin',
         
     config.train_config['train_loader']['BatchSize'] = batch_size
     config.train_config['val_loader']['BatchSize'] = batch_size
+    config.train_config['train_loader']['NumWorker'] = num_worker
+    config.train_config['val_loader']['NumWorker'] = num_worker
+    
     config.train_config['epochs'] = epochs
     config.train_config['val_rate'] = val_rate
     config.train_config['save_model_epoch'] = save_model_epoch
