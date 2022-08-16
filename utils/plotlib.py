@@ -6,14 +6,17 @@
 import numpy as np
 import torch
 import os
+from tqdm import tqdm
 
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from .toollib import ToNumpy, ToTensor, squeeze_node, unsqueeze_node,\
-    flatten_node, check_dirs
-    
+    flatten_node, check_dirs, getModelFileExternal
+from .modellib import getModel, loadModel
+from .datalib import getDataset, getDataloader, splitDataset
+
 #=====================Default Font=====================#
 DefaultFont = {'family': 'Times New Roman',
                'weight': 'normal',
@@ -187,3 +190,114 @@ def contrast_res(pred_res, gt_res, saveroot:str, epoch:int):
                     xlabel='Pred_{}'.format(figlist[i]),
                     ylabel='Truth_{}'.format(figlist[i]))
 
+# Polt all nodes API
+def plotResponseResult(nodes:dict, paths:dict, index:int, epoch:int, istrain:bool=True, FlattenNode:bool=False):
+    init_node, gt_node, pred_node = nodes['init_node'], nodes['gt_node'], nodes['pred_node']
+    if istrain:
+        dirname = 'train'
+    else:
+        dirname = 'val'
+    plotPointCloud(node=init_node,
+                   epoch=epoch,
+                   save_root=os.path.join(paths['Input'], dirname),
+                   index=index, 
+                   flatten_node=FlattenNode)
+    plotPointCloud(node=gt_node,
+                   epoch=epoch,
+                   save_root=os.path.join(paths['GT'], dirname),
+                   index=index,
+                   flatten_node=FlattenNode)
+    plotPointCloud(node=pred_node,
+                   epoch=epoch,
+                   save_root=os.path.join(paths['Pred'], dirname),
+                   index=index,
+                   flatten_node=FlattenNode)
+    plotContrastNode(pred_node=pred_node,
+                     gt_node=gt_node, 
+                     epoch=epoch, 
+                     save_root=os.path.join(paths['contrast'], dirname),
+                     index=index,
+                     flatten_node=FlattenNode)
+    
+
+def loadPretrainModelPlotResponseResult(config, file_class:str='epochs', epoch:int=100):
+    task='ResponseProxy'
+    
+    train_config = config.train_config
+    paths = config.path_config
+    model_config = config.model_config
+    data_config = config.data_config
+    optimizer_config = config.optimizer_config
+    
+    model_name = config.model_name
+    # create and load model
+    proxymodel = getModel(config)
+    file_ex = getModelFileExternal(file_class=file_class, epoch=epoch)
+    model_file = os.path.join(config.path_config['Model_Library'],'{}_{}.pth'.format(model_name, file_ex))
+    if os.path.exists(model_file):
+        proxymodel, e = loadModel(net=proxymodel,
+                                  save_path=paths['Model_Library'],
+                                  file_class=file_class,
+                                  model_name=model_name, 
+                                  task=task, epoch=epoch)
+        print('load pretrain model')
+    else:
+        raise ValueError('File Could not found: {}'.format(model_file))
+    epoch = e
+    dataset = getDataset(data_config)
+    # split dataset
+    splited_out = splitDataset(dataset=dataset, cfg=config)
+    train_loader, val_loader = splited_out['train_dataloader'], splited_out['val_dataloader']
+    
+    device = train_config['device']
+    FlattenNode = False
+    if data_config['point2img']:
+        FlattenNode = True
+        
+    proxymodel.to(device=device)
+    proxymodel.eval()
+    idx=0
+    train_img_index = 0
+    val_img_index = 0
+    for batch in tqdm(train_loader):
+        if idx%50==0:
+            init_node = batch['init_node']
+            gt_node = batch['out_node']
+            param = batch['params']
+            
+            init_node = ToTensor(init_node).to(device=device, dtype=torch.float32)
+            gt_node = ToTensor(gt_node).to(device=device, dtype=torch.float32)
+            param = ToTensor(param).to(device=device, dtype=torch.float32)
+            
+            with torch.no_grad():
+                pred_node, _ = proxymodel(init_node, param)
+            p_nodes = {'init_node':init_node,
+                          'gt_node':gt_node, 
+                          'pred_node':pred_node}
+            plotResponseResult(nodes=p_nodes, paths=paths, index=train_img_index, epoch=epoch, istrain=True, FlattenNode=FlattenNode)
+            train_img_index+=1
+        idx+=1
+    idx = 0
+    for batch in tqdm(val_loader):
+        if idx%10==0:
+            init_node = batch['init_node']
+            gt_node = batch['out_node']
+            param = batch['params']
+            # to device
+            init_node = ToTensor(init_node).to(device=device, dtype=torch.float32)
+            gt_node = ToTensor(gt_node).to(device=device, dtype=torch.float32)
+            param = ToTensor(param).to(device=device, dtype=torch.float32)
+            # predict
+            with torch.no_grad():
+                pred_node, _ = proxymodel(init_node, param)
+            p_nodes = {'init_node':init_node,
+                       'gt_node':gt_node, 
+                       'pred_node':pred_node}
+            plotResponseResult(nodes=p_nodes, paths=paths, index=val_img_index, epoch=epoch, istrain=False, FlattenNode=FlattenNode)
+            val_img_index+=1
+        idx+=1
+    print('end')
+    
+    
+    
+    

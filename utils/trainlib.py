@@ -211,31 +211,6 @@ def train_proxy(config):
             total_time=time.time() - start_time
             hours, mins, sec = time2hms(total_time)
             
-            if ((epoch+1)%train_config['save_per_epoch']==0 or epoch==train_config['epochs']-1) and idx%50==0:
-                plotPointCloud(node=init_node,
-                               epoch=epoch,
-                               save_root=os.path.join(paths['Input'],'train'),
-                               index=train_img_index,
-                               flatten_node=FlattenNode)
-                plotPointCloud(node=gt_node,
-                               epoch=epoch,
-                               save_root=os.path.join(paths['GT'],'train'),
-                               index=train_img_index,
-                               flatten_node=FlattenNode)
-                plotPointCloud(node=pred_node,
-                               epoch=epoch,
-                               save_root=os.path.join(paths['Pred'],'train'),
-                               index=train_img_index,
-                               flatten_node=FlattenNode)
-                plotContrastNode(pred_node=pred_node,
-                                 gt_node=gt_node, 
-                                 epoch=epoch, 
-                                 save_root=os.path.join(paths['contrast'], 'train'),
-                                 index=train_img_index,
-                                 flatten_node=FlattenNode)
-
-                train_img_index+=1
-            
             infomation = 'Epoch: [{:>2d}/{:>2d}] || Time: {:>3d} H {:>2d} M {:.3f} s || Loss: {:.8f} || train item: {:>5d} / {:>5d} || item time: {:.3f} sec || train time: {:.3f} sec'.format(
                 epoch, epoch_start + train_config['epochs'], hours, mins, sec, loss.item(), 
                 train_step%((train_num)//train_config['train_loader']['BatchSize']), 
@@ -275,28 +250,7 @@ def train_proxy(config):
             # count time
             pred_used_time = time.time()-val_time
             pred_used_times.append(pred_used_time)
-            if (epoch+1)%train_config['save_per_epoch']==0 or epoch==train_config['epochs']-1:
-                plotPointCloud(node=init_node,
-                               epoch=epoch,
-                               save_root=os.path.join(paths['Input'],'val'),
-                               index=val_img_index, 
-                               flatten_node=FlattenNode)
-                plotPointCloud(node=gt_node,
-                               epoch=epoch,
-                               save_root=os.path.join(paths['GT'],'val'),
-                               index=val_img_index,
-                               flatten_node=FlattenNode)
-                plotPointCloud(node=pred_node,
-                               epoch=epoch,
-                               save_root=os.path.join(paths['Pred'],'val'),
-                               index=val_img_index,
-                               flatten_node=FlattenNode)
-                plotContrastNode(pred_node=pred_node,
-                                 gt_node=gt_node, 
-                                 epoch=epoch, 
-                                 save_root=os.path.join(paths['contrast'], 'val'),
-                                 index=val_img_index,
-                                 flatten_node=FlattenNode)
+            if (epoch+1)%train_config['save_model_epoch']==0 or epoch==train_config['epochs']-1:
                 pred_res = ToNumpy(pred_res)
                 res = ToNumpy(res)
                 pred_result.append(pred_res)

@@ -87,6 +87,7 @@ def listnode2img(node, img_h=64):
     
     return node
 
+# data utils
 def normalize(d, r, no_buttom=False):
     b, u = r
     if no_buttom:
@@ -132,6 +133,17 @@ def check_dirs(directory):
             if e.errno != errno.EEXIST:
                 raise
 
+# files utils
+def getModelFileExternal(file_class:str='last', epoch:int=100):
+    class_list=['best', 'last', 'epochs']
+    file_extension_name=['best', 'last_epoch', 'checkpoint-epoch{}'.format(epoch)]
+    assert file_class in class_list, 'file class must be one of [best, last, epoch]'
+    for i in range(len(class_list)):
+        if file_class == class_list[i]:
+            file_ex = file_extension_name[i]
+    return file_ex
+
+# get blocks
 def get_optimizer(p, model, nheads=1, cluster_head_only=False):
     if cluster_head_only: # Only weights in the cluster head will be updated 
         for name, param in model.named_parameters():
@@ -196,7 +208,6 @@ class AverageMeter(object):
         fmtstr = '{name} {val' + self.fmt + '} ({avg' + self.fmt + '})'
         return fmtstr.format(**self.__dict__)
 
-
 class ProgressMeter(object):
     def __init__(self, num_batches, meters, prefix=""):
         self.batch_fmtstr = self._get_batch_fmtstr(num_batches)
@@ -213,7 +224,7 @@ class ProgressMeter(object):
         fmt = '{:' + str(num_digits) + 'd}'
         return '[' + fmt + '/' + fmt.format(num_batches) + ']'
 
-
+# train and val utils
 @torch.no_grad()
 def fill_memory_bank(loader, model, memory_bank):
     model.eval()

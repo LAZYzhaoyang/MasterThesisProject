@@ -2,6 +2,9 @@
 author: Zhaoyang Li
 Central South University
 
+### 2022/08/16
+version 3.1.1 修改了train_proxy函数，将绘图从中移除，提高模型训练速度，绘图程序被移至plotlib中的plotResponseResult和loadPretrainModelPlotResponseResult函数中联合调用。在训练完成后重新载入训练好的模型，绘制对应训练代际的模型所输出的预测图
+
 ### 2022/08/15
 version 3.1 修补了3.0版本的一些漏洞，所有代码均上传至GitHub，在3.1版本之后所有的代码将会与数据，结果分隔，不再放在同一文件夹，代码更规范，更易修改和使用。
 

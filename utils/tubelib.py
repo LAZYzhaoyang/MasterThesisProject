@@ -19,7 +19,7 @@ from pymoo.optimize import minimize
 # my lib
 
 #from .plotlib import plotPointCloud, plotContrastNode, contrast_res
-from .toollib import ToNumpy, ToTensor, random_index, normalize, unnormalize
+from .toollib import ToNumpy, ToTensor, random_index, normalize, unnormalize, getModelFileExternal
 from .modellib import getModel, loadModel
 from ..config.configs import get_config, TubeOptimizingConfig
 
@@ -62,8 +62,6 @@ def paramNormalization(p, p_range, keys, not_buttom):
         p[i] = normalize(d=p[i], r=p_range[keys[i]], no_buttom=not_buttom[i])
     return p    
     
-    
-
 def paramUnnormalization(p, p_range, keys, not_buttom):
     assert len(p)==len(keys)
     assert len(p)==len(not_buttom)
@@ -114,14 +112,6 @@ def zeroone2real(x:np.ndarray, x_range:dict, keys, is_discrete):
         x=x[0]
     return x
 
-def getModelFileExternal(file_class:str='last', epoch:int=100):
-    class_list=['best', 'last', 'epochs']
-    file_extension_name=['best', 'last_epoch', 'checkpoint-epoch{}'.format(epoch)]
-    assert file_class in class_list, 'file class must be one of [best, last, epoch]'
-    for i in range(len(class_list)):
-        if file_class == class_list[i]:
-            file_ex = file_extension_name[i]
-    return file_ex
 
 def getKeysandDiscrete(opti_keys, opti_setting:dict):
     real_keys = []
