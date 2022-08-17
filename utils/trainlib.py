@@ -829,7 +829,7 @@ def train_spice(config):
         print('Train ...')
         spice_one_epoch(dataset=dataset, train_indices=train_indices, model=spicemodel, criterion=criterion, 
                         optimizer=optimizer, device=device, epoch=epoch, logger=logger, num_repeat=4, nhead=1, 
-                        batch_size=train_config['train_loader']['BatchSize'], device=device,
+                        batch_size=train_config['train_loader']['BatchSize'],
                         update_cluster_head_only=train_config['update_cluster_head_only'])
         
         # Evaluate 
