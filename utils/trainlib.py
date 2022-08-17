@@ -448,7 +448,7 @@ def train_supervised(config):
     bestinfo = 'best acc: {:.6f} in epoch {:>4d}'.format(best_acc, best_epoch)
     logger.info(bestinfo)
   
-def supervised_one_epoch(train_loader, model, criterion, optimizer, epoch, logger):
+def supervised_one_epoch(train_loader, model, criterion, optimizer, epoch, logger, device=torch.device('cuda')):
     losses = AverageMeter('Loss', ':.8e')
     progress = ProgressMeter(len(train_loader), [losses],
                                 prefix="Epoch: [{}]".format(epoch))
@@ -456,8 +456,8 @@ def supervised_one_epoch(train_loader, model, criterion, optimizer, epoch, logge
     model.train()
     
     for i, batch in enumerate(train_loader):
-        nodes = ToTensor(batch['node']).cuda(non_blocking=True)
-        label = ToTensor(batch['label']).cuda(non_blocking=True)
+        nodes = ToTensor(batch['node']).to(device=device, non_blocking=True)
+        label = ToTensor(batch['label']).to(device=device, non_blocking=True)
 
         pred = model(nodes)
         
@@ -583,6 +583,7 @@ def train_scan(config):
                        optimizer=optimizer,
                        epoch=epoch,
                        logger=logger,
+                       device=device,
                        update_cluster_head_only=train_config['update_cluster_head_only'])
         
         # Evaluate 
@@ -665,7 +666,7 @@ def train_scan(config):
     logger.info(bestinfo)
 
     
-def scan_one_epoch(train_loader, model, criterion, optimizer, epoch, logger, update_cluster_head_only=True):
+def scan_one_epoch(train_loader, model, criterion, optimizer, epoch, logger, device=torch.device('cuda'), update_cluster_head_only=True):
     """ 
     Train w/ SCAN-Loss
     """
@@ -683,8 +684,8 @@ def scan_one_epoch(train_loader, model, criterion, optimizer, epoch, logger, upd
 
     for i, batch in enumerate(train_loader):
         # Forward pass
-        anchors = ToTensor(batch['anchor']).cuda(non_blocking=True)
-        neighbors = ToTensor(batch['neighbor']).cuda(non_blocking=True)
+        anchors = ToTensor(batch['anchor']).to(device=device, non_blocking=True)
+        neighbors = ToTensor(batch['neighbor']).to(device=device, non_blocking=True)
        
         if update_cluster_head_only: # Only calculate gradient for backprop of linear layer
             with torch.no_grad():
@@ -828,7 +829,7 @@ def train_spice(config):
         print('Train ...')
         spice_one_epoch(dataset=dataset, train_indices=train_indices, model=spicemodel, criterion=criterion, 
                         optimizer=optimizer, device=device, epoch=epoch, logger=logger, num_repeat=4, nhead=1, 
-                        batch_size=train_config['train_loader']['BatchSize'],
+                        batch_size=train_config['train_loader']['BatchSize'], device=device,
                         update_cluster_head_only=train_config['update_cluster_head_only'])
         
         # Evaluate 
@@ -895,7 +896,7 @@ def train_spice(config):
     logger.info(bestinfo)
         
 def spice_one_epoch(dataset, train_indices, model, criterion, optimizer, 
-                    device, epoch:int, logger, num_repeat:int=2, nhead:int=1, 
+                    device=torch.device('cuda'), epoch:int, logger, num_repeat:int=2, nhead:int=1, 
                     batch_size:int=8, update_cluster_head_only=False):
     # get pseudo label
     scores, features = getScoreAndFeature(dataset=dataset, indices=train_indices, model=model, 
@@ -975,7 +976,7 @@ def spice_one_epoch(dataset, train_indices, model, criterion, optimizer,
             iter_num+=1
     print('Finish epoch {}'.format(epoch))
                 
-def getScoreAndFeature(dataset, indices, model, device, nhead:int=1, batch_size:int=8):
+def getScoreAndFeature(dataset, indices, model, device=torch.device('cuda'), nhead:int=1, batch_size:int=8):
     # dataset: torch.utils.data.Dataset, data_loader.subdataset.SpiceDataset
     # indices: list or numpy.array, [train_num]
     # model: model.ClusteringModel.ClusteringModel
@@ -1161,7 +1162,7 @@ def train_simclr(config):
         
         # Train
         print('Train ...')
-        simclr_one_epoch(train_loader=train_loader, model=simclrmodel, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger, point2img=point2img)
+        simclr_one_epoch(train_loader=train_loader, model=simclrmodel, criterion=criterion, optimizer=optimizer, device=device, epoch=epoch, logger=logger, point2img=point2img)
         
         # Fill memory bank
         print('Fill memory bank for kNN...')
@@ -1219,7 +1220,7 @@ def train_simclr(config):
     best_info = 'best acc:{:.6f} in epoch {:>4d}'.format(best_acc, best_epoch)
     logger.info(best_info)
     
-def simclr_one_epoch(train_loader, model, criterion, optimizer, epoch, logger, point2img=False):
+def simclr_one_epoch(train_loader, model, criterion, optimizer, epoch, logger, device=torch.device('cuda'), point2img=False):
     losses = AverageMeter('Loss', ':.6e')
     progress = ProgressMeter(len(train_loader),
         [losses],
@@ -1237,8 +1238,8 @@ def simclr_one_epoch(train_loader, model, criterion, optimizer, epoch, logger, p
             b, c, l = nodes.shape
             
         if type(nodes)==np.ndarray:
-            nodes = torch.from_numpy(nodes).cuda()
-            nodes_augmented = torch.from_numpy(nodes_augmented).cuda()
+            nodes = torch.from_numpy(nodes).to(device=device, non_blocking=True)
+            nodes_augmented = torch.from_numpy(nodes_augmented).to(device=device, non_blocking=True)
         input_ = torch.cat([nodes.unsqueeze(1), nodes_augmented.unsqueeze(1)], dim=1)
         
         if point2img:
@@ -1246,7 +1247,7 @@ def simclr_one_epoch(train_loader, model, criterion, optimizer, epoch, logger, p
         else:
             input_ = input_.view(-1, c, l)
             
-        input_ = input_.cuda(non_blocking=True)
+        input_ = input_.to(device=device, non_blocking=True)
         #targets = batch['label'].cuda(non_blocking=True)
 
         output = model(input_).view(b, 2, -1)
@@ -1369,9 +1370,9 @@ def train_byol(config):
         # Train
         print('Train ...')
         byolmodel, target_model = byol_one_epoch(train_loader=train_loader, model=byolmodel, 
-                                                 target_model=target_model, criterion=criterion, 
-                                                 optimizer=optimizer, epoch=epoch, logger=logger, 
-                                                 point2img=point2img)
+                                                 target_model=target_model, criterion=criterion,
+                                                 device=device, optimizer=optimizer, epoch=epoch, 
+                                                 logger=logger, point2img=point2img)
         
         # Fill memory bank
         print('Fill memory bank for kNN...')
@@ -1429,7 +1430,7 @@ def train_byol(config):
     best_info = 'best acc:{:.6f} in epoch {:>4d}'.format(best_acc, best_epoch)
     logger.info(best_info)
     
-def byol_one_epoch(train_loader, model, target_model, criterion, optimizer, epoch, logger, point2img=False):
+def byol_one_epoch(train_loader, model, target_model, criterion, optimizer, epoch, logger, device=torch.device('cuda'), point2img=False):
     losses = AverageMeter('Loss', ':.6e')
     progress = ProgressMeter(len(train_loader),
         [losses],
@@ -1439,8 +1440,8 @@ def byol_one_epoch(train_loader, model, target_model, criterion, optimizer, epoc
     target_model.eval()
     
     for i, batch in enumerate(train_loader):
-        nodes1 = ToTensor(batch['node']).cuda(non_blocking=True)
-        nodes2 = ToTensor(batch['node_augmented']).cuda(non_blocking=True)
+        nodes1 = ToTensor(batch['node']).to(device=device, non_blocking=True)
+        nodes2 = ToTensor(batch['node_augmented']).to(device=device, non_blocking=True)
         
         pred1 = model(nodes1)
         pred2 = model(nodes2)
@@ -1568,7 +1569,7 @@ def train_simsiam(config):
         
         # Train
         print('Train ...')
-        simsiam_one_epoch(train_loader=train_loader, model=simsiammodel, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
+        simsiam_one_epoch(train_loader=train_loader, model=simsiammodel, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger, device=device)
         
         # Fill memory bank
         print('Fill memory bank for kNN...')
@@ -1626,7 +1627,7 @@ def train_simsiam(config):
     best_info = 'best acc:{:.6f} in epoch {:>4d}'.format(best_acc, best_epoch)
     logger.info(best_info)
     
-def simsiam_one_epoch(train_loader, model, criterion, optimizer, epoch, logger):
+def simsiam_one_epoch(train_loader, model, criterion, optimizer, epoch, logger, device=torch.device('cuda')):
     losses = AverageMeter('Loss', ':.6e')
     progress = ProgressMeter(len(train_loader),
         [losses],
@@ -1640,8 +1641,8 @@ def simsiam_one_epoch(train_loader, model, criterion, optimizer, epoch, logger):
         
             
         if type(nodes1)==np.ndarray:
-            nodes1 = torch.from_numpy(nodes1).cuda()
-            nodes2 = torch.from_numpy(nodes2).cuda()
+            nodes1 = torch.from_numpy(nodes1).to(device=device, non_blocking=True)
+            nodes2 = torch.from_numpy(nodes2).to(device=device, non_blocking=True)
         else:
             nodes1 = nodes1.cuda()
             nodes2 = nodes2.cuda()
@@ -1782,6 +1783,7 @@ def train_deepcluster(config):
                                     criterion=criterion,
                                     optimizer=optimizer,
                                     epoch=epoch,
+                                    device=device,
                                     logger=logger)
 
         # Evaluate 
@@ -1852,7 +1854,7 @@ def train_deepcluster(config):
     bestinfo = 'best acc: {:.6f} in epoch {:>4d}'.format(best_acc, best_epoch)
     logger.info(bestinfo)
     
-def train_deepcluster_one_epoch(train_loader, model, deepcenter:DeepClusterCenter, criterion, optimizer, epoch, logger):
+def train_deepcluster_one_epoch(train_loader, model, deepcenter:DeepClusterCenter, criterion, optimizer, epoch, logger, device=torch.device('cuda')):
     losses = AverageMeter('Loss', ':.8e')
     progress = ProgressMeter(len(train_loader), [losses],
                                 prefix="Epoch: [{}]".format(epoch))
@@ -1861,11 +1863,11 @@ def train_deepcluster_one_epoch(train_loader, model, deepcenter:DeepClusterCente
     
     for i, batch in enumerate(train_loader):
         if epoch%2==0:
-            nodes = ToTensor(batch['node']).cuda(non_blocking=True)
-            node_aug = ToTensor(batch['node_augmented']).cuda(non_blocking=True)
+            nodes = ToTensor(batch['node']).to(device=device, non_blocking=True)
+            node_aug = ToTensor(batch['node_augmented']).to(device=device, non_blocking=True)
         else:
-            nodes = ToTensor(batch['node_augmented']).cuda(non_blocking=True)
-            node_aug = ToTensor(batch['node']).cuda(non_blocking=True)
+            nodes = ToTensor(batch['node_augmented']).to(device=device, non_blocking=True)
+            node_aug = ToTensor(batch['node']).to(device=device, non_blocking=True)
         
         pred = model(nodes, forward_pass='return_all')
         prob, fea = pred['output'], pred['features']
