@@ -896,7 +896,7 @@ def train_spice(config):
     logger.info(bestinfo)
         
 def spice_one_epoch(dataset, train_indices, model, criterion, optimizer, 
-                    device=torch.device('cuda'), epoch:int, logger, num_repeat:int=2, nhead:int=1, 
+                    epoch:int, logger, device=torch.device('cuda'), num_repeat:int=2, nhead:int=1, 
                     batch_size:int=8, update_cluster_head_only=False):
     # get pseudo label
     scores, features = getScoreAndFeature(dataset=dataset, indices=train_indices, model=model, 
