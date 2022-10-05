@@ -383,7 +383,7 @@ def train_supervised(config):
 
         # Train
         print('Train ...')
-        supervised_one_epoch(train_loader, supervisedmodel, criterion, optimizer, epoch, logger=logger)
+        supervised_one_epoch(train_loader, supervisedmodel, criterion, optimizer, epoch, logger=logger, device=device)
         
         # Evaluate 
         print('Make prediction on training set ...')
