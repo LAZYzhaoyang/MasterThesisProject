@@ -2,6 +2,9 @@
 author: Zhaoyang Li
 Central South University
 
+### 2022/10/07
+version 3.1.2 修改了plot_xy和 plot_xz函数，新增了取消坐标轴功能和设置坐标轴范围的功能，使用更加方便
+
 ### 2022/08/16
 version 3.1.1 修改了train_proxy函数，将绘图从中移除，提高模型训练速度，绘图程序被移至plotlib中的plotResponseResult和loadPretrainModelPlotResponseResult函数中联合调用。在训练完成后重新载入训练好的模型，绘制对应训练代际的模型所输出的预测图
 
