@@ -44,32 +44,41 @@ def plot_node(node, savepath, figsize=(10,10), flatten=True):
     else:
         ValueError('len node out of the range')
 
-def plot_xy(x, y, index=0, save_path='', figsize=(10,10), font=DefaultFont, save_axis:bool=True):
+def plot_xy(x, y, xy_range=None, index=0, save_path='', figsize=(10,10), font=DefaultFont, save_axis:bool=True, bbox_inches='tight'):
     filename = 'time_step_{}_xy.png'.format(index)
     filename = os.path.join(save_path, filename)
     plt.figure(num=1,figsize=figsize)
     plt.scatter(x, y, alpha=0.8)
+    if xy_range is not None:
+        minx, maxx = xy_range[0]
+        miny, maxy = xy_range[1]
+        plt.xlim(minx, maxx)
+        plt.ylim(miny, maxy)
     if save_axis:
         plt.xlabel('x', font)
         plt.ylabel('y', font)
-        plt.ylim(-0.05,1)
     else:
         plt.axis('off')
-    plt.savefig(filename)
+    plt.savefig(filename, bbox_inches=bbox_inches)
     plt.close(fig=1)
 
-def plot_xz(x, z, index=0, save_path='', figsize=(10,10), font=DefaultFont, save_axis:bool=True):
+def plot_xz(x, z, xz_range=None, index=0, save_path='', figsize=(10,10), font=DefaultFont, save_axis:bool=True, bbox_inches='tight'):
     filename = 'time_step_{}_xz.png'.format(index)
     filename = os.path.join(save_path, filename)
     plt.figure(num=1,figsize=figsize)
     plt.scatter(x, z, alpha=0.8)
+    if xz_range is not None:
+        minx, maxx = xz_range[0]
+        minz, maxz = xz_range[1]
+        plt.xlim(minx, maxx)
+        plt.ylim(minz, maxz)
     if save_axis:
         plt.xlabel('x', font)
         plt.ylabel('z', font)
     else:
         plt.axis('off')
-    plt.savefig(filename)
-    plt.close(fig=1) 
+    plt.savefig(filename, bbox_inches=bbox_inches)
+    plt.close(fig=1)
     
 def plot_loss(loss, t=None, save_path='', figsize=(10,10), font=DefaultFont):
     filename = 'loss.png'
