@@ -36,6 +36,9 @@ def genTubeInitPointCould(h, r, grid_size=1, npoint=1024):
     while point_num<npoint:
         base_node_num=base_node_num*2
         point_num = base_node_num*h//grid_size
+    if base_node_num<100:
+        base_node_num=100
+    #print(h, r, base_node_num)
     base_angle = np.linspace(0, 2*np.pi, num=base_node_num, endpoint=False)
     node = []
     for high in hlist:
@@ -52,6 +55,13 @@ def genTubeInitPointCould(h, r, grid_size=1, npoint=1024):
     return node
 
 
+def tubePointNormalization(p, H, R):
+    # p [n, c, nump]
+    p[:,0,:] = p[:,0,:]/R # x
+    p[:,1,:] = p[:,1,:]/H
+    p[:,2,:] = p[:,2,:]/R
+    return p
+
 #=========================utils=========================#
 
 def paramNormalization(p, p_range, keys, not_buttom):
@@ -67,6 +77,10 @@ def paramUnnormalization(p, p_range, keys, not_buttom):
     assert len(p)==len(not_buttom)
     
     for i in range(len(p)):
+        # if p[i]>1:
+        #     p[i]=1
+        # if p[i]<0:
+        #     p[i]=0
         p[i] = unnormalize(d=p[i], r=p_range[keys[i]], no_buttom=not_buttom[i])
     return p 
 
@@ -165,8 +179,7 @@ class ProxyModel:
         self.device = config.ProxyConfig.train_config['device']
         self.proxy = self.proxy.to(device=self.device)
         self.cluster = self.cluster.to(device=self.device)
-        
-    
+
     def __call__(self, init_node, params):
         init_node = ToTensor(init_node).to(device=self.device, dtype=torch.float32)
         params = ToTensor(params).to(device=self.device, dtype=torch.float32)
@@ -235,18 +248,27 @@ class TubeDeformationOptimizing(ElementwiseProblem):
         self.proxy_model.loadPretrainModel()
         
         self.paramconfig = config.TubeParams
+        self.H = self.paramconfig['height'][1]
+        self.R = self.paramconfig['radius'][1]
+        #
+        
         self.opti_setting = config.optimizingset
         
         real_key, real_discrete, real_buttom = getKeysandDiscrete(opti_keys=opti_keys, opti_setting=config.optimizingset)
         self.real_key = real_key
         self.real_discrete = real_discrete
         self.real_buttom = real_buttom
+        # print('real_key:', real_key)
+        # print('real_discrete:', real_discrete)
+        # print('real_buttom:',real_buttom)
         
         self.npoint = config.ProxyConfig.data_config['npoint']
         
         x_num = len(self.real_key)
         xl = np.zeros(len(self.real_key))
         xu = np.ones_like(xl)
+        # print('xu:',xu)
+        # print('xl:',xl)
         
         self.input_keys = ['height', 'radius', 'thick', 'mass', 'etan', 'sigy', 'rho', 'e']
         self.input_buttom = []
@@ -278,6 +300,7 @@ class TubeDeformationOptimizing(ElementwiseProblem):
                 p_r = self.paramconfig[ik]
                 real_p.append(p_r[0])
         h, r, t, rho = real_x[0], real_x[1], real_x[2], real_x[-2]
+        # print('h,r,t,rho:',h,r,t,rho)
         mass = getTubeMass(rho=rho, h=h, r=r, t=t)
         mass_i = input_keys.index('mass')
         real_p[mass_i]=mass
@@ -285,18 +308,20 @@ class TubeDeformationOptimizing(ElementwiseProblem):
         real_p = np.array(real_p)[np.newaxis,:] #原始数据，还没归一化
         
         init_node = genTubeInitPointCould(h=h, r=r, npoint=self.npoint)
+        init_node = tubePointNormalization(init_node, H=self.H, R=self.R)
         
         pred = self.proxy_model(init_node=init_node, params=real_p)
         
         res = pred['response']
         res = res[0].tolist()
+        # print('res:', res)
         res = paramUnnormalization(p=res, p_range=self.paramconfig, keys=self.output_keys, not_buttom=[1,1])
         pcf, ea = res[0], res[1]
         sea = ea/mass
         
         clsres = pred['cluster_res']
         out['F']=[pcf, -sea]
-        out['G']=clsres-3
+        #out['G']=clsres-4
         
 
 def TubeOptimizing(config:TubeOptimizingConfig):

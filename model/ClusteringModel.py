@@ -216,7 +216,10 @@ def saveClusterModel(clustermodel, save_path:str, epoch:int, filename:str, optim
     
     torch.save(state, filename)
 
-def loadClusterModel(net, save_path:str, file_class:str, model_name:str='PointSwin', epoch:int=0, load_backbone_only=False):
+def loadClusterModel(net, save_path:str, file_class:str, 
+                     model_name:str='PointSwin', epoch:int=0, 
+                     load_backbone_only=False,
+                     device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
     class_list=['best', 'last', 'epochs']
     assert file_class in class_list, 'file class must be one of [best, last, epoch]'
     if file_class==class_list[0]:
@@ -226,7 +229,7 @@ def loadClusterModel(net, save_path:str, file_class:str, model_name:str='PointSw
     else:
         filename = os.path.join(save_path, '{}_checkpoint-epoch{}.pth'.format(model_name, epoch))
         
-    ckpt = torch.load(filename)
+    ckpt = torch.load(filename, map_location=device)
     
     epoch_start = ckpt['epoch']
     net = loadParameters(net, ckpt, load_backbone_only=load_backbone_only)

@@ -60,7 +60,8 @@ def saveSupervisedModel(supervisednet, save_path:str, epoch:int, filename:str, o
     
     torch.save(state, filename)
 
-def loadSupervisedModel(net, save_path:str, file_class:str, model_name:str='PointSwin', epoch:int=0):
+def loadSupervisedModel(net, save_path:str, file_class:str, model_name:str='PointSwin', epoch:int=0, 
+                        device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
     class_list=['best', 'last', 'epochs']
     assert file_class in class_list, 'file class must be one of [best, last, epoch]'
     if file_class==class_list[0]:
@@ -70,7 +71,7 @@ def loadSupervisedModel(net, save_path:str, file_class:str, model_name:str='Poin
     else:
         filename = os.path.join(save_path, '{}_checkpoint-epoch{}.pth'.format(model_name, epoch))
         
-    ckpt = torch.load(filename)
+    ckpt = torch.load(filename, map_location=device)
     
     epoch_start = ckpt['epoch']
     net = loadSupervisedParameters(model=net, ckpt=ckpt)

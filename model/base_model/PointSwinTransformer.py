@@ -336,6 +336,8 @@ class ResponsePointSwinEmbedding(nn.Module):
         # param: [b, pd]
         point_embedding = self.point_embed(x)
         param_embedding = self.param_embed(param)
+        # print('point emb:',point_embedding.size())
+        # print('param emb:', param_embedding.size())
         
         # point_embed: [b, embeddim, n//patch_size]
         # param_embed: [b, embeddim]
@@ -343,8 +345,9 @@ class ResponsePointSwinEmbedding(nn.Module):
         param_embedding = param_embedding.view(b,h,1)
         
         feature = point_embedding + param_embedding
+        # print('feature:', feature.size())
         
-        return feature
+        return feature, param_embedding
         
 class ResponsePointSwinHead(nn.Module):
     def __init__(self, embedding_dim:int=32, pred_dim:int=15, patch_size:int=4, response_dim:int=2, mlp_dim:int=64):
@@ -354,20 +357,38 @@ class ResponsePointSwinHead(nn.Module):
         
         #self.pooling = nn.Conv1d(in_channels=embedding_dim, out_channels=mlp_dim, kernel_size=)
         self.pooling1 = nn.AdaptiveAvgPool1d(256)
-        self.pooling2 = nn.Conv1d(in_channels=256, out_channels=256, kernel_size=embedding_dim, stride=1, padding=0)
-        self.res_head = nn.Sequential(nn.Flatten(),
-                                      nn.Linear(in_features=256, out_features=mlp_dim),
-                                      nn.GELU(),
-                                      nn.Linear(in_features=mlp_dim, out_features=response_dim))
         
-    def forward(self, fea, patch_emb):
+        self.pooling2 = nn.Sequential(nn.Conv1d(in_channels=256, out_channels=256, kernel_size=embedding_dim, stride=1, padding=0),
+                                      nn.Flatten(),)
+        
+        self.res_emb = nn.Sequential(nn.Flatten(),
+                                     nn.Linear(in_features=embedding_dim, out_features=256),
+                                     nn.GELU(),
+                                     nn.Linear(in_features=256, out_features=256),
+                                     nn.GELU())
+        
+        self.res_head = nn.Sequential(nn.Linear(in_features=256, out_features=mlp_dim),
+                                      nn.GELU(),
+                                      #nn.ReLU(),
+                                      nn.Linear(in_features=mlp_dim, out_features=response_dim),
+                                      nn.Sigmoid())
+        
+    def forward(self, fea, patch_emb, param_emb):
+        # fea : [b, embedding_dim, point_size/up_scale_factor]
+        # patch_emb: same size as fea
+        # param_emb: [b, embedding_dim, 1]
+
         x = fea + patch_emb
         
         pred_point = self.pointlayer(x)
         
+        res_emb = self.res_emb(param_emb)
+        
         res_fea = self.pooling1(x)
         res_fea = res_fea.permute(0,2,1)
         res_fea = self.pooling2(res_fea)
+        
+        res_fea = res_fea + res_emb
         pred_res = self.res_head(res_fea)
         
         return pred_point, pred_res
@@ -385,10 +406,10 @@ class ResponsePointSwinTransformerProxyModel(nn.Module):
         self.head = ResponsePointSwinHead(embedding_dim=embed_dim, pred_dim=out_channels, patch_size=scale_factor, response_dim=res_dim)
     
     def forward(self, point, param, return_feature=False):
-        embed_fea = self.embedding(point, param)
+        embed_fea, param_emb = self.embedding(point, param)
         init_fea, features = self.encoder(embed_fea)
         fea = self.decoder(init_fea, features)
-        pred_point, pred_res = self.head(fea, embed_fea)
+        pred_point, pred_res = self.head(fea, embed_fea, param_emb)
                         
         all_feas = [embed_fea, features, init_fea, fea]
         if return_feature:

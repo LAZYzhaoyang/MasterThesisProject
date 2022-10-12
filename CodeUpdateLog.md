@@ -2,6 +2,9 @@
 author: Zhaoyang Li
 Central South University
 
+### 2022/10/12
+version 3.2 更改了代理模型的结构，改为双塔结构，算是重大升级。同时更新了在载入模型方面对于cpu环境的兼容，调整了以些默认参数设置
+
 ### 2022/10/07
 version 3.1.2 修改了plot_xy和 plot_xz函数，新增了取消坐标轴功能和设置坐标轴范围的功能，使用更加方便
 

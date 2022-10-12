@@ -228,7 +228,7 @@ TubeOptimizingSet={
     'discrete':[0,0,0,1,1,1,1,0,0,0],
     'no_buttom':[1,1,1,0,0,0,0,1,1,1],
     'opti_keys':['height', 'radius', 'thick', 'etan', 'sigy', 'rho', 'e', 'material'],
-    'pop_size':100,
+    'pop_size':200,
 }
 
 

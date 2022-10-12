@@ -84,7 +84,8 @@ def save_ResponseProxyModel(proxymodel,
 def load_ResponseProxyModel(net,
                             save_path:str, file_class:str, 
                             model_name:str='ResponseProxyModel', 
-                            epoch:int=0):
+                            epoch:int=0,
+                            device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
     class_list=['best', 'last', 'epochs']
     assert file_class in class_list, 'file class must be one of [best, last, epoch]'
     if file_class==class_list[0]:
@@ -94,7 +95,7 @@ def load_ResponseProxyModel(net,
     else:
         filename = os.path.join(save_path, '{}_checkpoint-epoch{}.pth'.format(model_name, epoch))
         
-    ckpt = torch.load(filename)
+    ckpt = torch.load(filename, map_location=device)
     
     epoch_start = ckpt['epoch']
     net.embedding.load_state_dict(ckpt['embedding'])

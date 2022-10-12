@@ -93,7 +93,7 @@ class ResponseProxyConfig:
 
 class ClusterConfig:
     def __init__(self, ncluster:int=4, task='simclr', BackboneType='PointSwin', 
-                 DatsetName='tube', opti='adawm', scheduler='cosine', feature_dim=128,
+                 DatsetName='tube', opti='adawm', scheduler='cosine', feature_dim=256,
                  point2img=False, pretext:str='simclr', data_root=None, result_root=None, 
                  is_train:bool=True):
         self.task = task
