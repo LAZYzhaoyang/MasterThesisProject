@@ -82,6 +82,35 @@ PointTransformer_ResponseDataConfig = {
     'npoint':1024
 }
 
+### MLP
+ResponseProxyMLPConfig = {
+    'param_dim':8,
+    'res_dim':2,
+}
+
+ProxyMLP_ProxyTrainConfig = {
+    'val_rate':0.05,
+    'epochs':800,
+    'batch_size':4,
+    'lr':0.001,
+    'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
+    'weight_decay':5e-4,
+    'momentum':0.8,
+    'shuffle_data':True,
+    'use_fp16':False,
+    'save_per_epoch':100,
+    'save_model_epoch':50,
+    'show_iter':100,
+    'train_loader':{'NumWorker':8,'BatchSize':16},
+    'val_loader':{'NumWorker':4,'BatchSize':1}
+}
+
+ProxyMLP_ResponseDataConfig = {
+    'point2img':False,
+    'one_hot':True,
+    'npoint':1024
+}
+
 #=================================Clustering Config=================================#
 BaseInfoConfig = {
     'dataset_path':'./data',

@@ -17,12 +17,15 @@ import os
 
 from .base_model.PointSwinTransformer import ResponsePointSwinTransformerProxyModel
 from .base_model.PointTransformer import ResponsePointTransformerProxyModel
+from .base_model.mlp import ProxyMLP
 #==================================Point Swin==================================#
 def getProxyModel(config, model_type='PointSwin'):
     if model_type == 'PointSwin':
         model = build_ResponsePointSwinTransformerProxyModel(config=config)
     elif model_type == 'PointTrans':
         model = build_ResponsePointTransformerProxyModel(config=config)
+    elif model_type == 'MLP':
+        model = build_ResponseProxyMLP(config=config)
     else:
         raise ValueError('Invalid Model name {}.'.format(model_type))
 
@@ -58,7 +61,10 @@ def build_ResponsePointSwinTransformerProxyModel(config):
                                                    mlp_dim=config['mlp_dim'])
     return model
 
-
+def build_ResponseProxyMLP(config):
+    model = ProxyMLP(in_features=config['param_dim'],
+                     out_responses=config['res_dim'])
+    return model
 
 #==================================utils==================================#
 
@@ -66,13 +72,19 @@ def build_ResponsePointSwinTransformerProxyModel(config):
 def save_ResponseProxyModel(proxymodel,
                             save_path:str, epoch:int,
                             filename:str, optimizer=None):
-    state = {
-        'epoch':epoch,
-        'embedding':proxymodel.embedding.state_dict(),
-        'encoder':proxymodel.encoder.state_dict(),
-        'decoder':proxymodel.decoder.state_dict(),
-        'response_head':proxymodel.head.state_dict()
-    }
+    if type(proxymodel)==ProxyMLP:
+        state = {
+            'epoch':epoch,
+            'proxymlp':proxymodel.state_dict(),
+        }
+    else:
+        state = {
+            'epoch':epoch,
+            'embedding':proxymodel.embedding.state_dict(),
+            'encoder':proxymodel.encoder.state_dict(),
+            'decoder':proxymodel.decoder.state_dict(),
+            'response_head':proxymodel.head.state_dict()
+        }
     
     if optimizer is not None:
         state['optimizer']=optimizer.state_dict()
@@ -98,9 +110,13 @@ def load_ResponseProxyModel(net,
     ckpt = torch.load(filename, map_location=device)
     
     epoch_start = ckpt['epoch']
-    net.embedding.load_state_dict(ckpt['embedding'])
-    net.encoder.load_state_dict(ckpt['encoder'])
-    net.decoder.load_state_dict(ckpt['decoder'])
-    net.head.load_state_dict(ckpt['response_head'])
+    
+    if type(net)==ProxyMLP:
+        net.load_state_dict(ckpt['proxymlp'])
+    else:
+        net.embedding.load_state_dict(ckpt['embedding'])
+        net.encoder.load_state_dict(ckpt['encoder'])
+        net.decoder.load_state_dict(ckpt['decoder'])
+        net.head.load_state_dict(ckpt['response_head'])
     
     return net, epoch_start

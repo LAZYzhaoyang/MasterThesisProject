@@ -4,6 +4,7 @@
 # Central South University
 """
 
+from imp import lock_held
 import os
 import time
 import numpy as np
@@ -125,6 +126,7 @@ def train_proxy(config):
     # create a tensorboard
     writer = SummaryWriter(config.path_config['Log'])
     model_name = config.model_name
+    model_type = config.model_type
     epoch_start=0
     # create and load model
     proxymodel = getModel(config)
@@ -139,7 +141,10 @@ def train_proxy(config):
     
     # create dataset, criterion, optimizer and scheduler
     dataset = getDataset(data_config)
-    criterion = ResponseLoss()
+    if model_type=='MLP':
+        criterion=nn.MSELoss()
+    else:   
+        criterion = ResponseLoss()
     optimizer = get_optimizer(p=optimizer_config, model=proxymodel)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=3, eta_min=1e-6, last_epoch=-1)
     
@@ -151,6 +156,7 @@ def train_proxy(config):
     logger = get_logger(path=paths['Log'], filename='{}Model_train.log'.format(task))
     
     scaler = GradScaler()
+    
     # train setting
     train_step = 0
     val_step = 0
@@ -160,6 +166,7 @@ def train_proxy(config):
     start_time = time.time()
     best_epoch = 0
     device = train_config['device']
+
     FlattenNode = False
     if data_config['point2img']:
         FlattenNode = True
@@ -168,112 +175,41 @@ def train_proxy(config):
     
     for epoch in range(epoch_start, epoch_start+train_config['epochs']):
         print('training '+str(epoch)+'th step...')
-        proxymodel.train()
-        idx=0
-        load_time = time.time()
-        train_img_index = 0
-        for batch in tqdm(train_loader):
-            init_node = batch['init_node']
-            gt_node = batch['out_node']
-            param = batch['params']
-            res = batch['res']
-            train_time = time.time()
-            train_loader_size = train_loader.__len__()
-            
-            init_node = ToTensor(init_node).to(device=device, dtype=torch.float32)
-            gt_node = ToTensor(gt_node).to(device=device, dtype=torch.float32)
-            param = ToTensor(param).to(device=device, dtype=torch.float32)
-            res = ToTensor(res).to(device=device, dtype=torch.float32)
-            #label = label.to(device=device, dtype=torch.float32)
-            
-            optimizer.zero_grad()
-            if train_config['use_fp16']:
-                with autocast():
-                    pred_node, pred_res = proxymodel(init_node, param)
-                    loss = criterion(pred_node, gt_node, pred_res, res)
-                writer.add_scalar('{}_Loss/train'.format(model_name), loss.item(), train_step)
-                if train_step % 10 == 0:
-                    train_losses.append(loss.item())
-                scaler.scale(loss).backward()
-                scaler.step(optimizer=optimizer)
-                scaler.update()
-            else:
-                pred_node, pred_res = proxymodel(init_node, param)
-                loss = criterion(pred_node, gt_node, pred_res, res)
-                writer.add_scalar('{}_Loss/train'.format(model_name), loss.item(), train_step)
-                if train_step % 10 == 0:
-                    train_losses.append(loss.item())
-                loss.backward()
-                optimizer.step()
-            #print(pred)
-            scheduler.step(epoch + idx / train_loader_size)
-            #scheduler.step()
-            total_time=time.time() - start_time
-            hours, mins, sec = time2hms(total_time)
-            
-            infomation = 'Epoch: [{:>2d}/{:>2d}] || Time: {:>3d} H {:>2d} M {:.3f} s || Loss: {:.8f} || train item: {:>5d} / {:>5d} || item time: {:.3f} sec || train time: {:.3f} sec'.format(
-                epoch, epoch_start + train_config['epochs'], hours, mins, sec, loss.item(), 
-                train_step%((train_num)//train_config['train_loader']['BatchSize']), 
-                (train_num)//train_config['train_loader']['BatchSize'], 
-                time.time()-load_time, time.time()-train_time)
-            if train_step % 100==0:
-                logger.info(infomation)
-                
-            idx = idx+1
-            train_step+=1
-            load_time = time.time()
-            
-        # validation
-        proxymodel.eval()
-        val_img_index = 0
-        pred_used_times = []
-        pred_result = []
-        gt_result = []
-        for batch in tqdm(val_loader):
-            init_node = batch['init_node']
-            gt_node = batch['out_node']
-            param = batch['params']
-            res = batch['res']
-            #optimizer.zero_grad()
-            # save time
-            
-            val_time = time.time()
-            # to device
-            init_node = ToTensor(init_node).to(device=device, dtype=torch.float32)
-            gt_node = ToTensor(gt_node).to(device=device, dtype=torch.float32)
-            param = ToTensor(param).to(device=device, dtype=torch.float32)
-            res = ToTensor(res).to(device=device, dtype=torch.float32)
-            # predict
-            with torch.no_grad():
-                pred_node, pred_res = proxymodel(init_node, param)
-                val_loss = criterion(pred_node, gt_node, pred_res, res)
-            # count time
-            pred_used_time = time.time()-val_time
-            pred_used_times.append(pred_used_time)
-            if (epoch+1)%train_config['save_model_epoch']==0 or epoch==train_config['epochs']-1:
-                pred_res = ToNumpy(pred_res)
-                res = ToNumpy(res)
-                pred_result.append(pred_res)
-                gt_result.append(res)
-                
-                val_img_index += 1
-                
-            
-            writer.add_scalar('{}_Loss/val'.format(model_name), val_loss.item(), val_step)
-            val_losses.append(val_loss.item())
-            val_step = val_step+1 
+        train_proxy_one_epoch(train_loader=train_loader,
+                              model=proxymodel,
+                              criterion=criterion,
+                              optimizer=optimizer,
+                              scheduler=scheduler,
+                              scaler=scaler,
+                              epoch=epoch,
+                              writer=writer,
+                              train_step=train_step,
+                              logger=logger,
+                              train_losses=train_losses,
+                              train_num=train_num,
+                              train_config=train_config,
+                              model_name=model_name,
+                              model_type=model_type,
+                              start_time=start_time,
+                              epoch_start=epoch_start,
+                              device=device)
+        train_step+=1
+        print('evaluating '+str(epoch)+'th step...')
+        mean_val_loss = val_proxy_one_epoch(val_loader=val_loader,
+                                            model=proxymodel,
+                                            criterion=criterion,
+                                            train_config=train_config,
+                                            epoch=epoch,
+                                            logger=logger,
+                                            model_type=model_type,
+                                            model_name=model_name,
+                                            writer=writer,
+                                            paths=paths, 
+                                            val_losses=val_losses,
+                                            val_step=val_step,
+                                            device=device)
+        val_step = val_step+1
         
-        if len(pred_result)>0:
-            pred_result = np.concatenate(pred_result, axis=0)
-            gt_result = np.concatenate(gt_result, axis=0)
-            contrast_res(pred_res=pred_result, gt_res=gt_result, saveroot=os.path.join(paths['contrast'], 'val'), epoch=epoch)
-               
-            
-            
-        mean_pred_time = np.mean(pred_used_times)
-        mean_val_loss = np.mean(val_losses)
-        logger.info('mean val loss: {:.8f} || mean predict time: {:.8f} sec'.format(mean_val_loss, mean_pred_time))
-        print('mean val loss: {:.8f} || mean predict time: {:.8f} sec'.format(mean_val_loss, mean_pred_time))
         saveModel(net=proxymodel, save_path=paths['Model_Library'], epoch=epoch,
                   filename='{}_last_epoch.pth'.format(model_name), optimizer=optimizer, task=task)
         
@@ -296,6 +232,155 @@ def train_proxy(config):
     np.save(trainlossfile, train_losses)
     np.save(vallossfile, val_losses)
     logger.info('best Loss: {:.6f} in epoch: {}'.format(best_loss, best_epoch))
+
+
+def train_proxy_one_epoch(train_loader, 
+                          model, 
+                          criterion, 
+                          optimizer, 
+                          scheduler,
+                          scaler,
+                          epoch, 
+                          writer,
+                          train_step,
+                          logger, 
+                          train_losses,
+                          train_config, 
+                          model_name,
+                          model_type, 
+                          start_time,
+                          epoch_start,
+                          train_num,
+                          device=torch.device('cuda')):
+    
+    model.train()
+    
+    for i, batch in enumerate(train_loader):
+        train_time = time.time()
+        train_loader_size = train_loader.__len__()
+
+        load_time = time.time()
+        
+        param = batch['params']
+        res = batch['res']
+        
+        param = ToTensor(param).to(device=device, dtype=torch.float32)
+        res = ToTensor(res).to(device=device, dtype=torch.float32)
+        optimizer.zero_grad()
+        
+        if model_type=='MLP':
+            if train_config['use_fp16']:
+                with autocast():
+                    pred_res = model(param)
+                    loss = criterion(pred_res, res)
+                scaler.scale(loss).backward()
+                scaler.step(optimizer=optimizer)
+                scaler.update()
+            else:
+                pred_res = model(param)
+                loss = criterion(pred_res, res)
+                loss.backward()
+                optimizer.step()
+        else:
+            init_node = batch['init_node']
+            gt_node = batch['out_node']
+            init_node = ToTensor(init_node).to(device=device, dtype=torch.float32)
+            gt_node = ToTensor(gt_node).to(device=device, dtype=torch.float32)
+
+            if train_config['use_fp16']:
+                with autocast():
+                    pred_node, pred_res = model(init_node, param)
+                    loss = criterion(pred_node, gt_node, pred_res, res)
+                scaler.scale(loss).backward()
+                scaler.step(optimizer=optimizer)
+                scaler.update()
+            else:
+                pred_node, pred_res = model(init_node, param)
+                loss = criterion(pred_node, gt_node, pred_res, res)
+                loss.backward()
+                optimizer.step()
+        #print(pred)
+        scheduler.step(epoch + i / train_loader_size)
+        #scheduler.step()
+        
+        writer.add_scalar('{}_Loss/train'.format(model_name), loss.item(), train_step)
+        if train_step % 10 == 0:
+            train_losses.append(loss.item())
+        total_time=time.time() - start_time
+        hours, mins, sec = time2hms(total_time)
+        
+        infomation = 'Epoch: [{:>2d}/{:>2d}] || Time: {:>3d} H {:>2d} M {:.3f} s || Loss: {:.8f} || train item: {:>5d} / {:>5d} || item time: {:.3f} sec || train time: {:.3f} sec'.format(
+                epoch, epoch_start + train_config['epochs'], hours, mins, sec, loss.item(), 
+                train_step%((train_num)//train_config['train_loader']['BatchSize']), 
+                (train_num)//train_config['train_loader']['BatchSize'], 
+                time.time()-load_time, time.time()-train_time)
+        if train_step % 100==0:
+            logger.info(infomation)
+
+        train_step+=1
+        load_time = time.time()
+            
+def val_proxy_one_epoch(val_loader,
+                        model,
+                        criterion,
+                        train_config,
+                        epoch,
+                        logger,
+                        model_type,
+                        model_name,
+                        writer,
+                        paths,
+                        val_losses,
+                        val_step,
+                        device):
+    model.eval() 
+    pred_used_times = []
+    pred_result = []
+    gt_result = []
+    for _, batch in enumerate(val_loader):
+        param = batch['params']
+        res = batch['res']
+        # to device
+        param = ToTensor(param).to(device=device, dtype=torch.float32)
+        res = ToTensor(res).to(device=device, dtype=torch.float32)
+        val_time = time.time()
+        
+        if model_type=='MLP':
+            with torch.no_grad():
+                pred_res = model(param)
+                val_loss = criterion(pred_res, res)
+        else:
+            init_node = batch['init_node']
+            gt_node = batch['out_node']
+            init_node = ToTensor(init_node).to(device=device, dtype=torch.float32)
+            gt_node = ToTensor(gt_node).to(device=device, dtype=torch.float32)
+            # predict
+            with torch.no_grad():
+                pred_node, pred_res = model(init_node, param)
+                val_loss = criterion(pred_node, gt_node, pred_res, res)
+        # count time
+        pred_used_time = time.time()-val_time
+        pred_used_times.append(pred_used_time)
+        if (epoch+1)%train_config['save_model_epoch']==0 or epoch==train_config['epochs']-1:
+            pred_res = ToNumpy(pred_res)
+            res = ToNumpy(res)
+            pred_result.append(pred_res)
+            gt_result.append(res)
+            
+        writer.add_scalar('{}_Loss/val'.format(model_name), val_loss.item(), val_step)
+        val_losses.append(val_loss.item())
+
+    
+    if len(pred_result)>0:
+        pred_result = np.concatenate(pred_result, axis=0)
+        gt_result = np.concatenate(gt_result, axis=0)
+        contrast_res(pred_res=pred_result, gt_res=gt_result, saveroot=os.path.join(paths['contrast'], 'val'), epoch=epoch)
+            
+    mean_pred_time = np.mean(pred_used_times)
+    mean_val_loss = np.mean(val_losses)
+    logger.info('mean val loss: {:.8f} || mean predict time: {:.8f} sec'.format(mean_val_loss, mean_pred_time))
+    print('mean val loss: {:.8f} || mean predict time: {:.8f} sec'.format(mean_val_loss, mean_pred_time))
+    return mean_val_loss
 
 #===================================Training of Supervised Model===================================#
 def train_supervised(config):

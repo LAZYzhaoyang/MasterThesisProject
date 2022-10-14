@@ -71,6 +71,10 @@ class ResponseProxyConfig:
             self.model_config = ResponseProxyPointTransformerConfig
             self.train_config = PointTransformer_ProxyTrainConfig
             self.data_config = PointTransformer_ResponseDataConfig
+        elif ModelType=='MLP':
+            self.model_config = ResponseProxyMLPConfig
+            self.train_config = ProxyMLP_ProxyTrainConfig
+            self.data_config = ProxyMLP_ResponseDataConfig
         else:
             raise ValueError('Invalid Model Type ({})'.format(ModelType))
         
