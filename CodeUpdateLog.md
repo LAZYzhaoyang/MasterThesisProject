@@ -2,6 +2,9 @@
 author: Zhaoyang Li
 Central South University
 
+### 2022/10/16
+version 3.4 更新了管子优化的程序，修复了一些bug，同时更新了一些绘图程序和优化预测部分的程序
+
 ### 2022/10/15
 version 3.3 添加了全连接网络代理模型，包括对应的建立，保存，载入，训练方法的整合
 

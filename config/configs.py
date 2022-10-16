@@ -301,7 +301,7 @@ class TubeOptimizingConfig(object):
                  point2img:bool=False):
         assert cluster_type in ['spice', 'scan', 'deepkmeans', 'supervised', 'deepcluster']
         assert pretext in ['simclr', 'byol', 'simsiam', 'supervised']
-        assert proxy_backbone in ['PointSwin', 'PointTrans']
+        assert proxy_backbone in ['PointSwin', 'PointTrans', 'MLP']
         assert cluster_backbone in ['PointSwin', 'PointTrans']
         self.info = {
             'cluster_type':cluster_type,

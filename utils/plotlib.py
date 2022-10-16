@@ -33,18 +33,23 @@ def plot_node(node, savepath, figsize=(10,10), flatten=True):
         x = node[0,:]
         y = node[1,:]
         z = node[2,:]
-        plot_xy(x, y, save_path=savepath, figsize=figsize)
-        plot_xz(x, z, save_path=savepath, figsize=figsize)
+        plot_xy(x, y, save_path=savepath, figsize=figsize, save_axis=False)
+        plot_xz(x, z, save_path=savepath, figsize=figsize, save_axis=False)
     elif len(node.shape)==3:
         t, c, _ = node.shape
         for i in range(t):
             x, y, z = node[i,0,:], node[i,1,:], node[i,2,:]
-            plot_xy(x, y, index=i, save_path=savepath, figsize=figsize)
-            plot_xz(x, z, index=i, save_path=savepath, figsize=figsize)
+            plot_xy(x, y, index=i, save_path=savepath, figsize=figsize, save_axis=False)
+            plot_xz(x, z, index=i, save_path=savepath, figsize=figsize, save_axis=False)
     else:
         ValueError('len node out of the range')
 
-def plot_xy(x, y, xy_range=None, index=0, save_path='', figsize=(10,10), font=DefaultFont, save_axis:bool=True, bbox_inches='tight'):
+def plot_xy(x, y, xy_range=None, 
+            index=0, save_path='', 
+            figsize=(10,10), 
+            font=DefaultFont, 
+            save_axis:bool=True, 
+            bbox_inches='tight'):
     filename = 'time_step_{}_xy.png'.format(index)
     filename = os.path.join(save_path, filename)
     plt.figure(num=1,figsize=figsize)
@@ -62,7 +67,12 @@ def plot_xy(x, y, xy_range=None, index=0, save_path='', figsize=(10,10), font=De
     plt.savefig(filename, bbox_inches=bbox_inches)
     plt.close(fig=1)
 
-def plot_xz(x, z, xz_range=None, index=0, save_path='', figsize=(10,10), font=DefaultFont, save_axis:bool=True, bbox_inches='tight'):
+def plot_xz(x, z, xz_range=None, 
+            index=0, save_path='', 
+            figsize=(10,10), 
+            font=DefaultFont, 
+            save_axis:bool=True, 
+            bbox_inches='tight'):
     filename = 'time_step_{}_xz.png'.format(index)
     filename = os.path.join(save_path, filename)
     plt.figure(num=1,figsize=figsize)
@@ -93,14 +103,13 @@ def plot_loss(loss, t=None, save_path='', figsize=(10,10), font=DefaultFont):
     plt.savefig(filename)
     plt.close(fig=1)
     
-def plotPointCloud(node, epoch:int, save_root:str, index:int=0, flatten_node:bool=False):
+def plotPointCloud(node, save_path:str, index:int=0, flatten_node:bool=False):
     # node [b,tc,l] or [tc,l]
     node = ToNumpy(node)
     if flatten_node:
         # node [n,c,h,w] or [c,h,w]
         node = flatten_node(node)
         # node [b,tc,l] or [tc,l]
-    save_path = os.path.join(save_root, 'epoch_{}'.format(epoch))
     check_dirs(save_path)
     if len(node.shape)==3:
         n, tc, l = node.shape
@@ -115,6 +124,10 @@ def plotPointCloud(node, epoch:int, save_root:str, index:int=0, flatten_node:boo
         check_dirs(index_dir)
         plot_node(node=node, savepath=index_dir, flatten=False)
         
+def plotPointCloudbyEpoch(node, epoch:int, save_root:str, index:int=0, flatten_node:bool=False):
+    save_path = os.path.join(save_root, 'epoch_{}'.format(epoch))
+    plotPointCloud(node=node, save_path=save_path, index=index, flatten_node=flatten_node)
+
 #=====================Plot Response Result=====================#
 def plotContrastNode(pred_node, gt_node, epoch:int,
                      save_root:str, index:int=0, flatten_node:bool=True):
