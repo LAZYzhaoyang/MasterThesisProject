@@ -189,12 +189,3 @@ class SupervisedDataset(Dataset):
         
         return output
     
-class MoCoDataset(Dataset):
-    def __init__(self):
-        super().__init__()
-    
-    
-    
-class SPICEDataset(Dataset):
-    def __init__(self) -> None:
-        super().__init__()
