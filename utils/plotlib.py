@@ -23,24 +23,28 @@ DefaultFont = {'family': 'Times New Roman',
                'size': 20,}
 #=====================Plot Node Coordinate=====================#
 
-def plot_node(node, savepath, figsize=(10,10), flatten=True):
+def plot_node(node, savepath, xyz_range, figsize=(10,10), flatten=True):
     # node: [c, l] or [t,c,l]
+    # xyz_range: [[xmin, xmax], [ymin, ymax], [zmin, zmax]]
     node = ToNumpy(node)
     check_dirs(savepath)
+    xr, yr, zr = xyz_range
+    xyr = [xr,yr]
+    xzr = [xr,zr]
     if flatten:
         node = flatten_node(node)
     if len(node.shape)==2:
         x = node[0,:]
         y = node[1,:]
         z = node[2,:]
-        plot_xy(x, y, save_path=savepath, figsize=figsize, save_axis=False)
-        plot_xz(x, z, save_path=savepath, figsize=figsize, save_axis=False)
+        plot_xy(x, y, xy_range=xyr, save_path=savepath, figsize=figsize, save_axis=False)
+        plot_xz(x, z, xz_range=xzr, save_path=savepath, figsize=figsize, save_axis=False)
     elif len(node.shape)==3:
         t, c, _ = node.shape
         for i in range(t):
             x, y, z = node[i,0,:], node[i,1,:], node[i,2,:]
-            plot_xy(x, y, index=i, save_path=savepath, figsize=figsize, save_axis=False)
-            plot_xz(x, z, index=i, save_path=savepath, figsize=figsize, save_axis=False)
+            plot_xy(x, y, xy_range=xyr, index=i, save_path=savepath, figsize=figsize, save_axis=False)
+            plot_xz(x, z, xz_range=xzr, index=i, save_path=savepath, figsize=figsize, save_axis=False)
     else:
         ValueError('len node out of the range')
 
@@ -103,9 +107,11 @@ def plot_loss(loss, t=None, save_path='', figsize=(10,10), font=DefaultFont):
     plt.savefig(filename)
     plt.close(fig=1)
     
-def plotPointCloud(node, save_path:str, index:int=0, flatten_node:bool=False):
+def plotPointCloud(node, save_path:str, xyz_range=None, index:int=0, flatten_node:bool=False):
     # node [b,tc,l] or [tc,l]
     node = ToNumpy(node)
+    if xyz_range is None:
+        xyz_range=[[-1,1], [0,1], [-1,1]]
     if flatten_node:
         # node [n,c,h,w] or [c,h,w]
         node = flatten_node(node)
@@ -117,16 +123,18 @@ def plotPointCloud(node, save_path:str, index:int=0, flatten_node:bool=False):
             multi_node = unsqueeze_node(node[i])
             index_dir = os.path.join(save_path, '{:0>5d}'.format(index*n+i))
             check_dirs(index_dir)
-            plot_node(node=multi_node, savepath=index_dir, flatten=False)
+            plot_node(node=multi_node, xyz_range=xyz_range, savepath=index_dir, flatten=False)
     elif len(node.shape)==2:
         node = unsqueeze_node(node)       
         index_dir = os.path.join(save_path, '{:0>5d}'.format(index))
         check_dirs(index_dir)
-        plot_node(node=node, savepath=index_dir, flatten=False)
+        plot_node(node=node, xyz_range=xyz_range, savepath=index_dir, flatten=False)
         
-def plotPointCloudbyEpoch(node, epoch:int, save_root:str, index:int=0, flatten_node:bool=False):
+def plotPointCloudbyEpoch(node, epoch:int, save_root:str, xyz_range=None, index:int=0, flatten_node:bool=False):
     save_path = os.path.join(save_root, 'epoch_{}'.format(epoch))
-    plotPointCloud(node=node, save_path=save_path, index=index, flatten_node=flatten_node)
+    if xyz_range is None:
+        xyz_range=[[-1,1], [0,1], [-1,1]]
+    plotPointCloud(node=node, xyz_range=xyz_range, save_path=save_path, index=index, flatten_node=flatten_node)
 
 #=====================Plot Response Result=====================#
 def plotContrastNode(pred_node, gt_node, epoch:int,
@@ -222,27 +230,36 @@ def contrast_res(pred_res, gt_res, saveroot:str, epoch:int):
                     ylabel='Truth_{}'.format(figlist[i]))
 
 # Polt all nodes API
-def plotResponseResult(nodes:dict, paths:dict, index:int, epoch:int, istrain:bool=True, FlattenNode:bool=False):
+def plotResponseResult(nodes:dict, 
+                       paths:dict, 
+                       index:int, 
+                       epoch:int, 
+                       xyz_range=None,
+                       istrain:bool=True, 
+                       FlattenNode:bool=False):
     init_node, gt_node, pred_node = nodes['init_node'], nodes['gt_node'], nodes['pred_node']
     if istrain:
         dirname = 'train'
     else:
         dirname = 'val'
-    plotPointCloud(node=init_node,
-                   epoch=epoch,
-                   save_root=os.path.join(paths['Input'], dirname),
-                   index=index, 
-                   flatten_node=FlattenNode)
-    plotPointCloud(node=gt_node,
-                   epoch=epoch,
-                   save_root=os.path.join(paths['GT'], dirname),
-                   index=index,
-                   flatten_node=FlattenNode)
-    plotPointCloud(node=pred_node,
-                   epoch=epoch,
-                   save_root=os.path.join(paths['Pred'], dirname),
-                   index=index,
-                   flatten_node=FlattenNode)
+    plotPointCloudbyEpoch(node=init_node,
+                          epoch=epoch,
+                          xyz_range=xyz_range,
+                          save_root=os.path.join(paths['Input'], dirname),
+                          index=index, 
+                          flatten_node=FlattenNode)
+    plotPointCloudbyEpoch(node=gt_node,
+                          epoch=epoch,
+                          xyz_range=xyz_range,
+                          save_root=os.path.join(paths['GT'], dirname),
+                          index=index,
+                          flatten_node=FlattenNode)
+    plotPointCloudbyEpoch(node=pred_node,
+                          epoch=epoch,
+                          xyz_range=xyz_range,
+                          save_root=os.path.join(paths['Pred'], dirname),
+                          index=index,
+                          flatten_node=FlattenNode)
     plotContrastNode(pred_node=pred_node,
                      gt_node=gt_node, 
                      epoch=epoch, 
@@ -251,7 +268,7 @@ def plotResponseResult(nodes:dict, paths:dict, index:int, epoch:int, istrain:boo
                      flatten_node=FlattenNode)
     
 
-def loadPretrainModelPlotResponseResult(config, file_class:str='epochs', epoch:int=100):
+def loadPretrainModelPlotResponseResult(config, file_class:str='epochs', xyz_range=None, epoch:int=100):
     task='ResponseProxy'
     
     train_config = config.train_config
@@ -305,7 +322,7 @@ def loadPretrainModelPlotResponseResult(config, file_class:str='epochs', epoch:i
             p_nodes = {'init_node':init_node,
                           'gt_node':gt_node, 
                           'pred_node':pred_node}
-            plotResponseResult(nodes=p_nodes, paths=paths, index=train_img_index, epoch=epoch, istrain=True, FlattenNode=FlattenNode)
+            plotResponseResult(nodes=p_nodes, paths=paths, index=train_img_index, epoch=epoch, xyz_range=xyz_range, istrain=True, FlattenNode=FlattenNode)
             train_img_index+=1
         idx+=1
     idx = 0
@@ -324,7 +341,7 @@ def loadPretrainModelPlotResponseResult(config, file_class:str='epochs', epoch:i
             p_nodes = {'init_node':init_node,
                        'gt_node':gt_node, 
                        'pred_node':pred_node}
-            plotResponseResult(nodes=p_nodes, paths=paths, index=val_img_index, epoch=epoch, istrain=False, FlattenNode=FlattenNode)
+            plotResponseResult(nodes=p_nodes, paths=paths, index=val_img_index, epoch=epoch, xyz_range=xyz_range, istrain=False, FlattenNode=FlattenNode)
             val_img_index+=1
         idx+=1
     print('end')
