@@ -2,6 +2,8 @@
 author: Zhaoyang Li
 Central South University
 
+### 2022/10/17
+version 3.4.1 更新了部分init文件
 ### 2022/10/16
 version 3.4 更新了管子优化的程序，修复了一些bug，同时更新了一些绘图程序和优化预测部分的程序
 
