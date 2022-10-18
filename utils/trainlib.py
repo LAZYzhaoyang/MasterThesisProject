@@ -34,11 +34,11 @@ from .toollib import check_dirs, time2hms, ToNumpy, ToTensor, AverageMeter, \
     ProgressMeter, get_logger, get_optimizer, adjust_learning_rate, \
     save_clustering_stats, MemoryBank, fill_memory_bank, set_requires_grad, update_moving_average
 from .modellib import getModel, saveModel, loadModel
-from ..config.configs import get_config, ClusterConfig
+from ..config import get_config, ClusterConfig
 from .datalib import getDataset, getDataloader, splitDataset
 from .losslib import ResponseLoss, get_criterion
 from .evaluationlib import get_predictions, hungarian_evaluate, contrastive_evaluate, scan_evaluate
-from ..model.ClusteringModel import DeepClusterCenter
+from ..model import DeepClusterCenter
 
 #===================================Main Train Function===================================#
 def main_train(task:str='ResponseProxy', model_type:str='PointSwin', 

@@ -7,6 +7,7 @@ import os
 from time import process_time_ns
 import numpy as np
 import torch
+import math
 
 import pymoo
 from pymoo.core.problem import ElementwiseProblem
@@ -21,7 +22,7 @@ from pymoo.optimize import minimize
 #from .plotlib import plotPointCloud, plotContrastNode, contrast_res
 from .toollib import ToNumpy, ToTensor, random_index, normalize, unnormalize, getModelFileExternal, check_dirs
 from .modellib import getModel, loadModel
-from ..config.configs import get_config, TubeOptimizingConfig
+from ..config import get_config, TubeOptimizingConfig
 from .kmeanslib import PretrainKmeans
 
 #=========================gen point could=========================#
@@ -62,6 +63,16 @@ def tubePointNormalization(p, H, R):
     return p
 
 #=========================utils=========================#
+
+def param_round(x, d=None):
+    # x: list [n]
+    # d: list [1]
+    if d is None:
+        d = [2, 0.5, 0.5]
+    assert len(x)==len(d)
+    for i in range(len(x)):
+        x[i] = (math.ceil(x[i]/d[i]))*d[i]
+    return x
 
 def paramNormalization(p, p_range, keys, not_buttom):
     assert len(p)==len(keys)
@@ -378,12 +389,18 @@ def getRealParamAndInitNode(x,
             else:
                 p_r = param_config[ik]
                 real_p.append(p_r[0])
-        # print('real_p:', real_p)
         h, r, t, rho = real_p[0], real_p[1], real_p[2], real_p[-2]
+        param_rounding_unit = [2, 0.5, 0.5]
+        tube_size = [h,r,t]
+        tube_size = param_round(tube_size, param_rounding_unit)
+        h,r,t = tube_size
+        real_p[0], real_p[1], real_p[2] = h,r,t
         # print('h,r,t,rho:',h,r,t,rho)
         mass = getTubeMass(rho=rho, h=h, r=r, t=t)
         mass_i = input_keys.index('mass')
         real_p[mass_i]=mass
+        # print('real_p:', real_p)
+        # print(type(real_p))
         # print('real_p:', real_p)#原始数据，还没归一化
         if is_normalize:
             real_p = paramNormalization(real_p, p_range=param_config, keys=input_keys, not_buttom=p_buttom)

@@ -294,7 +294,7 @@ def loadPretrainModelPlotResponseResult(config, file_class:str='epochs', xyz_ran
     epoch = e
     dataset = getDataset(data_config)
     # split dataset
-    splited_out = splitDataset(dataset=dataset, cfg=config)
+    splited_out = splitDataset(dataset=dataset, cfg=config, use_pretrain_indexes=True)
     train_loader, val_loader = splited_out['train_dataloader'], splited_out['val_dataloader']
     
     device = train_config['device']

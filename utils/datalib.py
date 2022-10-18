@@ -4,9 +4,8 @@
 # Central South University
 """
 from sklearn.utils import shuffle
-from ..data_loader.base_dataset import Response_DataLoader, PointCloudDataset
-from ..data_loader.subdataset import AugmentedDataset, NeighborsDataset, \
-    SpiceDataset, SupervisedDataset
+from ..data_loader import AugmentedDataset, NeighborsDataset, \
+    SpiceDataset, SupervisedDataset, Response_DataLoader, PointCloudDataset
 
 import numpy as np
 import os
@@ -80,6 +79,7 @@ def splitDataset(dataset, cfg, use_pretrain_indexes=False, indices_save_path=Non
     shuffle_data=traincfg['shuffle_data']
     
     if use_pretrain_indexes:
+        print('Use pretrain index to split the dataset.')
         if indices_save_path is not None:
             train_file = os.path.join(indices_save_path, 'train_indices.npy')
             val_file = os.path.join(indices_save_path, 'val_indices.npy')
@@ -91,6 +91,7 @@ def splitDataset(dataset, cfg, use_pretrain_indexes=False, indices_save_path=Non
         train_indices= train_indices.tolist()
         val_indices = val_indices.tolist()
     else:
+        print('There is a random index to split the dataset.')
         dataset_size = len(dataset)
         split = int(np.floor(val_rate * dataset_size))
         indices = list(range(dataset_size))

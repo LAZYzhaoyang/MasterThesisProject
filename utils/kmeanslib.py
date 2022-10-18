@@ -4,7 +4,7 @@
 # Central South University
 """
 
-from ..config.configs import get_config
+from ..config import get_config
 from .modellib import getModel, loadModel
 from .datalib import getDataset, splitDataset
 from .toollib import ToTensor, ToNumpy, check_dirs
