@@ -458,8 +458,12 @@ def getClsRes(res, problem:TubeDeformationOptimizing):
     
     return {'cluster':cluster_res, 'nodes':pred_node}
 
-def save_opti_res(res, root, proxy_out):
-    p = os.path.join(root, 'opti_result')
+def save_opti_res(res, root, proxy_out, 
+                  proxy_backbone:str='PointSwin', 
+                  cluster_backbone:str='PointSwin', 
+                  cluster_type:str='spice',
+                  pretext:str='simclr'):
+    p = os.path.join(root, 'opti_result', '{}Proxy_{}Cluster_{}_{}'.format(proxy_backbone, cluster_backbone, cluster_type, pretext))
     check_dirs(p)
     F_filename = os.path.join(p, 'res_F.npy')
     X_filename = os.path.join(p, 'res_X.npy')
@@ -525,7 +529,7 @@ if __name__ == '__main__':
                    verbose=True)
     
     proxy_out = getClsRes(res=res, problem=problem)
-    save_opti_res(res, save_path, proxy_out)
+    save_opti_res(res, save_path, proxy_out, proxy_backbone=proxy_backbone, cluster_backbone=cluster_backbone, cluster_type=cluster_type, pretext=pretext)
     print('end')
             
         
