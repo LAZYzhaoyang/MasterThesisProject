@@ -43,8 +43,8 @@ def genTubeInitPointCould(h, r, grid_size=1, npoint=1024):
     node = []
     for high in hlist:
         floor_node = [r*np.cos(base_angle)[np.newaxis,:], 
-                      r*np.sin(base_angle)[np.newaxis,:],
-                      high*np.ones_like(base_angle)[np.newaxis,:]]
+                      high*np.ones_like(base_angle)[np.newaxis,:],
+                      r*np.sin(base_angle)[np.newaxis,:]]
         floor_node = np.concatenate(floor_node, axis=0)
         node.append(floor_node)
     node = np.concatenate(node, axis=1)
@@ -52,6 +52,11 @@ def genTubeInitPointCould(h, r, grid_size=1, npoint=1024):
     indices = random_index(indexnum=npoint, up=n, bottom=0)
     node = node[:,indices]
     node = node[np.newaxis,:,:]
+    
+    # index = np.arange(npoint)
+    # np.random.shuffle(index)
+    # node = node[:,:,index]
+    
     return node
 
 

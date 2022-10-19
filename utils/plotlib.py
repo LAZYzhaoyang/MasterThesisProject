@@ -111,7 +111,7 @@ def plotPointCloud(node, save_path:str, xyz_range=None, index:int=0, flatten_nod
     # node [b,tc,l] or [tc,l]
     node = ToNumpy(node)
     if xyz_range is None:
-        xyz_range=[[-1,1], [0,1], [-1,1]]
+        xyz_range=[[-1.25,1.25], [0,1], [-1.25,1.25]]
     if flatten_node:
         # node [n,c,h,w] or [c,h,w]
         node = flatten_node(node)
