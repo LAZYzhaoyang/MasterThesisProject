@@ -2,6 +2,8 @@
 author: Zhaoyang Li
 Central South University
 
+### 2022/10/19
+version 3.4.2 更新了生成初始点云的程序，原本的生成初始点云的y和z轴反了，目前已经修复了这个bug，优化出来的结果目前看来还行。plot部分的程序也进行了一定改进。
 ### 2022/10/17
 version 3.4.1 更新了部分init文件
 ### 2022/10/16
