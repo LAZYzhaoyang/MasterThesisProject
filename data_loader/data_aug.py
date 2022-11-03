@@ -73,7 +73,7 @@ class PointcloudScale(object):
 
 
 class PointcloudRotate(object):
-    def __init__(self, axis=np.array([0.0, 1.0, 0.0]), p=1):
+    def __init__(self, axis=None, p=1):
         self.axis = axis
         self.p = p
 
@@ -178,10 +178,10 @@ class PointcloudShuffle(object):
         
         if len(points.shape) == 2:
             tc, _ = points.shape
-            if tc%3==0:
-                points=unsqueeze_node(points, c=3)
-            elif tc%self.point_num==0:
+            if tc%self.point_num==0:
                 points=unsqueeze_node(points, c=self.point_num).transpose(0,2,1)
+            elif tc%3==0:
+                points=unsqueeze_node(points, c=3)    
             else:
                 ValueError('points shape must be [t*c, n] or [t*n, c]')
         
