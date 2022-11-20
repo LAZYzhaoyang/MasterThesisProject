@@ -435,8 +435,8 @@ class PointSwinFeatureExtractor(nn.Module):
                                          attn_layers=attnlayer)
         flatten_dim = self.backbone.outC[-1]
         self.fc = nn.Sequential(
-            #nn.AdaptiveAvgPool1d(output_size=1),
-            #nn.Flatten(),
+            nn.AdaptiveAvgPool1d(output_size=1),
+            nn.Flatten(),
             nn.Linear(in_features=flatten_dim, out_features=feature_dim*2),
             #nn.Dropout(p=0.5),
             nn.BatchNorm1d(feature_dim*2),
