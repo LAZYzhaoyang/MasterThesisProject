@@ -13,9 +13,10 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from .toollib import ToNumpy, ToTensor, squeeze_node, unsqueeze_node,\
-    flatten_node, check_dirs, getModelFileExternal
+    flatten_node, check_dirs, getModelFileExternal, unnormalize
 from .modellib import getModel, loadModel
 from .datalib import getDataset, getDataloader, splitDataset
+from ..config.base_config import TubeOptimizingSet, TubeParamsConfig
 
 #=====================Default Font=====================#
 DefaultFont = {'family': 'Times New Roman',
@@ -199,35 +200,64 @@ def contrast_node(pred_node, gt_node, saveroot:str, index:int=0, flatten=True):
         ValueError('len pred node is out of range')
 
 
-def contrast_xy(x:np.ndarray, y:np.ndarray, filename:str, xlabel:str='x', ylabel:str='y',figsize=(10,10)):
+# def contrast_xy(x:np.ndarray, y:np.ndarray, filename:str, xlabel:str='x', ylabel:str='y',figsize=(10,10)):
+#     font = {'family': 'Times New Roman',
+#             'weight': 'normal',
+#             'size': 20,}
+#     maxx, minx = np.max(x), np.min(x)
+#     maxy, miny = np.max(y), np.min(y)
+#     plt.figure(num=1,figsize=figsize)
+#     plt.scatter(x, y, alpha=0.8)
+#     plt.xlabel(xlabel, font)
+#     plt.ylabel(ylabel, font)
+#     plt.ylim(miny-1, maxy+1)
+#     plt.xlim(minx-1, maxx+1)
+#     plt.plot([minx-1,maxx+1], [miny-1,maxy+1], color='m', linestyle='--')
+#     plt.savefig(filename)
+#     plt.close(fig=1)
+    
+def contrast_xy(x:np.ndarray, y:np.ndarray, filename:str, padding_range=0.05, xlabel:str='x', ylabel:str='y',figsize=(10,10)):
     font = {'family': 'Times New Roman',
             'weight': 'normal',
             'size': 20,}
     maxx, minx = np.max(x), np.min(x)
     maxy, miny = np.max(y), np.min(y)
+    r_min=minx if minx<miny else miny
+    r_max=maxx if maxx>maxy else maxy
+    if padding_range>=1 or padding_range<0:
+        print('padding range is out of [0,1], reset as 0.05')
+        padding_range=0.05
+    
+    padding = np.abs(r_max) if np.abs(r_max)>np.abs(r_min) else np.abs(r_min)
+    
+    r_min = r_min-padding_range*padding
+    r_max = r_max+padding_range*padding
+    
     plt.figure(num=1,figsize=figsize)
     plt.scatter(x, y, alpha=0.8)
     plt.xlabel(xlabel, font)
     plt.ylabel(ylabel, font)
-    plt.ylim(miny-1, maxy+1)
-    plt.xlim(minx-1, maxx+1)
-    plt.plot([minx-1,maxx+1], [miny-1,maxy+1], color='m', linestyle='--')
+    plt.ylim(r_min, r_max)
+    plt.xlim(r_min, r_max)
+    plt.plot([r_min, r_max], [r_min, r_max], color='m', linestyle='--')
     plt.savefig(filename)
     plt.close(fig=1)
 
-def contrast_res(pred_res, gt_res, saveroot:str, epoch:int):
+def contrast_res(pred_res, gt_res, saveroot:str, epoch:int, padding_range=0.05):
     # pred_res: [b, dim], gt_res: [b, dim]
     pred_res = ToNumpy(pred_res)
     gt_res = ToNumpy(gt_res)
     savepath = os.path.join(saveroot, 'epoch_{}'.format(epoch))
     check_dirs(savepath)
     figlist = ['PCF', 'SEA']
+    unit = ['kN', 'kJ/kg']
     for i in range(len(figlist)):
         filename = os.path.join(savepath, 'pred_{}_and_gt_{}.png'.format(figlist[i], figlist[i]))
         contrast_xy(x=pred_res[:,i], y=gt_res[:,i], 
                     filename=filename, 
-                    xlabel='Pred_{}'.format(figlist[i]),
-                    ylabel='Truth_{}'.format(figlist[i]))
+                    padding_range=padding_range,
+                    xlabel='Pred_{} ({})'.format(figlist[i], unit[i]),
+                    ylabel='Truth_{} ({})'.format(figlist[i], unit[i]))
 
 # Polt all nodes API
 def plotResponseResult(nodes:dict, 
@@ -268,8 +298,100 @@ def plotResponseResult(nodes:dict,
                      flatten_node=FlattenNode)
     
 
-def loadPretrainModelPlotResponseResult(config, file_class:str='epochs', xyz_range=None, epoch:int=100):
+def loadPretrainModelPlotResponseResult(config, file_class:str='epochs', xyz_range=None, epoch:int=100, use_pretrain_indexes=False):
     task='ResponseProxy'
+    
+    train_config = config.train_config
+    paths = config.path_config
+    model_config = config.model_config
+    data_config = config.data_config
+    optimizer_config = config.optimizer_config
+    
+    model_name = config.model_name
+    # create and load model
+    proxymodel = getModel(config)
+    file_ex = getModelFileExternal(file_class=file_class, epoch=epoch)
+    model_file = os.path.join(config.path_config['Model_Library'],'{}_{}.pth'.format(model_name, file_ex))
+    if os.path.exists(model_file):
+        proxymodel, e = loadModel(net=proxymodel,
+                                  save_path=paths['Model_Library'],
+                                  file_class=file_class,
+                                  model_name=model_name, 
+                                  task=task, epoch=epoch)
+        print('load pretrain model')
+    else:
+        raise ValueError('File Could not found: {}'.format(model_file))
+    epoch = e
+    dataset = getDataset(data_config)
+    # split dataset
+    splited_out = splitDataset(dataset=dataset, cfg=config, use_pretrain_indexes=use_pretrain_indexes)
+    train_loader, val_loader = splited_out['train_dataloader'], splited_out['val_dataloader']
+    
+    device = train_config['device']
+    FlattenNode = False
+    if data_config['point2img']:
+        FlattenNode = True
+        
+    proxymodel.to(device=device)
+    proxymodel.eval()
+    idx=0
+    train_img_index = 0
+    val_img_index = 0
+    for batch in tqdm(train_loader):
+        if idx%5==0:
+            init_node = batch['init_node']
+            gt_node = batch['out_node']
+            param = batch['params']
+            
+            init_node = ToTensor(init_node).to(device=device, dtype=torch.float32)
+            gt_node = ToTensor(gt_node).to(device=device, dtype=torch.float32)
+            param = ToTensor(param).to(device=device, dtype=torch.float32)
+            
+            with torch.no_grad():
+                pred_node, _ = proxymodel(init_node, param)
+            p_nodes = {'init_node':init_node,
+                          'gt_node':gt_node, 
+                          'pred_node':pred_node}
+            plotResponseResult(nodes=p_nodes, paths=paths, index=train_img_index, epoch=epoch, xyz_range=xyz_range, istrain=True, FlattenNode=FlattenNode)
+            train_img_index+=1
+        idx+=1
+    idx = 0
+    for batch in tqdm(val_loader):
+        if idx%5==0:
+            init_node = batch['init_node']
+            gt_node = batch['out_node']
+            param = batch['params']
+            # to device
+            init_node = ToTensor(init_node).to(device=device, dtype=torch.float32)
+            gt_node = ToTensor(gt_node).to(device=device, dtype=torch.float32)
+            param = ToTensor(param).to(device=device, dtype=torch.float32)
+            # predict
+            with torch.no_grad():
+                pred_node, _ = proxymodel(init_node, param)
+            p_nodes = {'init_node':init_node,
+                       'gt_node':gt_node, 
+                       'pred_node':pred_node}
+            plotResponseResult(nodes=p_nodes, paths=paths, index=val_img_index, epoch=epoch, xyz_range=xyz_range, istrain=False, FlattenNode=FlattenNode)
+            val_img_index+=1
+        idx+=1
+    print('end')
+    
+    
+def loadPretrainModelPlotResponseContrast(config, 
+                                          file_class:str='epochs', 
+                                          epoch:int=100, 
+                                          padding_range=0.05,
+                                          mass_indice=3,
+                                          param_range=None):
+    task='ResponseProxy'
+    if param_range is None:
+        param_range = TubeParamsConfig
+    param_setting = TubeOptimizingSet
+    
+    mass_range = param_range['mass']
+    ea_range = param_range['ea']
+    pcf_range = param_range['pcf']
+    
     
     train_config = config.train_config
     paths = config.path_config
@@ -304,48 +426,49 @@ def loadPretrainModelPlotResponseResult(config, file_class:str='epochs', xyz_ran
         
     proxymodel.to(device=device)
     proxymodel.eval()
-    idx=0
-    train_img_index = 0
     val_img_index = 0
-    for batch in tqdm(train_loader):
-        if idx%50==0:
-            init_node = batch['init_node']
-            gt_node = batch['out_node']
-            param = batch['params']
-            
-            init_node = ToTensor(init_node).to(device=device, dtype=torch.float32)
-            gt_node = ToTensor(gt_node).to(device=device, dtype=torch.float32)
-            param = ToTensor(param).to(device=device, dtype=torch.float32)
-            
-            with torch.no_grad():
-                pred_node, _ = proxymodel(init_node, param)
-            p_nodes = {'init_node':init_node,
-                          'gt_node':gt_node, 
-                          'pred_node':pred_node}
-            plotResponseResult(nodes=p_nodes, paths=paths, index=train_img_index, epoch=epoch, xyz_range=xyz_range, istrain=True, FlattenNode=FlattenNode)
-            train_img_index+=1
-        idx+=1
     idx = 0
+    pred_result = []
+    gt_result = []
+    the_mass = []
     for batch in tqdm(val_loader):
         if idx%10==0:
             init_node = batch['init_node']
-            gt_node = batch['out_node']
             param = batch['params']
+            res = batch['res']
             # to device
             init_node = ToTensor(init_node).to(device=device, dtype=torch.float32)
-            gt_node = ToTensor(gt_node).to(device=device, dtype=torch.float32)
             param = ToTensor(param).to(device=device, dtype=torch.float32)
+            res = ToTensor(res).to(device=device, dtype=torch.float32)
             # predict
             with torch.no_grad():
-                pred_node, _ = proxymodel(init_node, param)
-            p_nodes = {'init_node':init_node,
-                       'gt_node':gt_node, 
-                       'pred_node':pred_node}
-            plotResponseResult(nodes=p_nodes, paths=paths, index=val_img_index, epoch=epoch, xyz_range=xyz_range, istrain=False, FlattenNode=FlattenNode)
+                _, pred_res = proxymodel(init_node, param)
+                
+            pred_res = ToNumpy(pred_res)
+            res = ToNumpy(res)
+            param = ToNumpy(param)
+            mass = param[:, mass_indice]
+            
+            
+            pred_result.append(pred_res)
+            gt_result.append(res)
+            the_mass.append(mass)
             val_img_index+=1
         idx+=1
+            
+    pred_result = np.concatenate(pred_result, axis=0)
+    gt_result = np.concatenate(gt_result, axis=0)
+    the_mass = np.concatenate(the_mass, axis=0)
+    
+    the_mass = unnormalize(d=the_mass, r=mass_range, no_buttom=1)
+    pred_result[:,0] = unnormalize(d=pred_result[:,0], r=pcf_range, no_buttom=1) * 1e-3
+    pred_result[:,1] = unnormalize(d=pred_result[:,1], r=ea_range, no_buttom=1)/the_mass * 1e-9
+    gt_result[:,0] = unnormalize(d=gt_result[:,0], r=pcf_range, no_buttom=1) * 1e-3
+    gt_result[:,1] = unnormalize(d=gt_result[:,1], r=ea_range, no_buttom=1)/the_mass * 1e-9
+    
+    contrast_res(pred_res=pred_result, gt_res=gt_result, 
+                 saveroot=os.path.join(paths['contrast'], 'val'), 
+                 epoch=epoch, padding_range=padding_range)
+
     print('end')
-    
-    
-    
     
