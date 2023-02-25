@@ -448,7 +448,7 @@ class PointSwinFeatureExtractor(nn.Module):
         x = self.embedding(x)
         x, _ = self.backbone(x)
         #print(x.size())
-        x = self.fc(x.mean(2))
+        x = self.fc(x)
         return x
     
 class PointSwin(nn.Module):
