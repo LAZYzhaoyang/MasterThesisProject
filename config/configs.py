@@ -63,7 +63,7 @@ class ResponseProxyConfig:
             
         self.path_config = build_dirs(root=self.info_config['result_root'])
         
-        if ModelType=='PointSwin':
+        if ModelType in ['PointSwin', 'ablationPointSwin']:
             self.model_config = ResponseProxyPointSwinTransformerConfig
             self.train_config = PointSwinTransformer_ProxyTrainConfig
             self.data_config = PointSwinTransformer_ResponseDataConfig

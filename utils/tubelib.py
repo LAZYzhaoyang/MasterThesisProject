@@ -76,7 +76,7 @@ def param_round(x, d=None):
         d = [2, 0.5, 0.5]
     assert len(x)==len(d)
     for i in range(len(x)):
-        x[i] = (math.ceil(x[i]/d[i]))*d[i]
+        x[i] = (round(x[i]/d[i]))*d[i]
     return x
 
 def paramNormalization(p, p_range, keys, not_buttom):
@@ -167,6 +167,21 @@ def getKeysandDiscrete(opti_keys, opti_setting:dict):
     
     return real_keys, real_discrete, real_not_buttom
 
+def getRealX(x, opti_keys, real_keys, opti_setting:dict):
+    real_x = np.zeros(len(real_keys))
+    keys_can_be_opti = opti_setting['opti_keys']
+    for i in range(len(opti_keys)):
+        k=opti_keys[i]
+        assert k in keys_can_be_opti
+        if k == 'material':
+            for j in ['etan', 'sigy','rho', 'e']:
+                ij = real_keys.index(j)
+                real_x[ij]=round(x[i])
+        else:
+            ik = real_keys.index(k)
+            real_x[ik]=x[i]
+    return real_x
+    
 #=========================Proxy unit=========================#
 class ProxyModel:
     def __init__(self, config:TubeOptimizingConfig):
@@ -271,7 +286,7 @@ class ProxyModel:
 #=========================Optimizing unit=========================#     
 
 class TubeDeformationOptimizing(ElementwiseProblem):
-    def __init__(self, config:TubeOptimizingConfig, opti_keys=['height', 'radius', 'thick', 'material']):
+    def __init__(self, config:TubeOptimizingConfig, opti_keys=['height', 'radius', 'thick', 'material'],def_constraint=4):
         self.config = config
         
         self.proxy_model = ProxyModel(config=config)
@@ -283,6 +298,7 @@ class TubeDeformationOptimizing(ElementwiseProblem):
         # print(self.H, self.R)
         self.opti_setting = config.optimizingset
         
+        self.opti_keys=opti_keys
         real_key, real_discrete, real_buttom = getKeysandDiscrete(opti_keys=opti_keys, opti_setting=config.optimizingset)
         self.real_key = real_key
         self.real_discrete = real_discrete
@@ -293,8 +309,11 @@ class TubeDeformationOptimizing(ElementwiseProblem):
         
         self.npoint = config.ProxyConfig.data_config['npoint']
         
-        x_num = len(self.real_key)
-        xl = np.zeros(len(self.real_key))
+        # x_num = len(self.real_key)
+        # xl = np.zeros(len(self.real_key))
+        # xu = np.ones_like(xl)
+        x_num = len(self.opti_keys)
+        xl = np.zeros(len(self.opti_keys))
         xu = np.ones_like(xl)
         # print('xu:',xu)
         # print('xl:',xl)
@@ -307,9 +326,10 @@ class TubeDeformationOptimizing(ElementwiseProblem):
             self.input_buttom.append(self.opti_setting['no_buttom'][bi])
             
         self.output_keys = ['pcf', 'ea']
+        self.def_constraint=def_constraint
         
         
-        super().__init__(n_var=len(self.real_key),
+        super().__init__(n_var=len(self.opti_keys),
                          n_obj=2,
                          n_constr=1,
                          xl=xl,
@@ -344,8 +364,9 @@ class TubeDeformationOptimizing(ElementwiseProblem):
         
         # init_node = genTubeInitPointCould(h=h, r=r, npoint=self.npoint)
         # init_node = tubePointNormalization(init_node, H=self.H, R=self.R)
-        
-        real_p, init_node, mass = getRealParamAndInitNode(x=x,
+        real_x = getRealX(x=x, opti_keys=self.opti_keys, real_keys=self.real_key, opti_setting=self.opti_setting)
+        # print('real_x:', real_x)
+        real_p, init_node, mass = getRealParamAndInitNode(x=real_x,
                                                           param_config=self.paramconfig, 
                                                           real_keys=self.real_key,
                                                           is_discrete=self.real_discrete,
@@ -355,8 +376,10 @@ class TubeDeformationOptimizing(ElementwiseProblem):
                                                           R=self.R,
                                                           is_normalize=True,
                                                           npoint=self.npoint)
-        
         pred = self.proxy_model(init_node=init_node, params=real_p)
+        
+        # real_p =paramUnnormalization(real_p[0,:], p_range=self.paramconfig, keys=self.input_keys, not_buttom=self.input_buttom)
+        # print('real_p:',real_p)
         
         res = pred['response']
         res = res[0].tolist()
@@ -369,8 +392,11 @@ class TubeDeformationOptimizing(ElementwiseProblem):
         # print('pcf, sea:', pcf, sea)
         
         clsres = pred['cluster_res']
+        
+        g1 = clsres-self.def_constraint
+        
         out['F']=[pcf, -sea]
-        out['G']=clsres-4
+        out['G']= [g1]
         
 def getRealParamAndInitNode(x,
                             param_config,
@@ -404,6 +430,7 @@ def getRealParamAndInitNode(x,
         mass = getTubeMass(rho=rho, h=h, r=r, t=t)
         mass_i = input_keys.index('mass')
         real_p[mass_i]=mass
+
         # print('real_p:', real_p)
         # print(type(real_p))
         # print('real_p:', real_p)#原始数据，还没归一化
@@ -425,6 +452,8 @@ def getClsRes(res, problem:TubeDeformationOptimizing):
     is_discrete = problem.real_discrete
     input_keys = problem.input_keys
     p_buttom = problem.input_buttom
+    opti_keys = problem.opti_keys
+    opti_setting = problem.opti_setting
     H = problem.H
     R = problem.R
     npoint = problem.npoint
@@ -437,8 +466,9 @@ def getClsRes(res, problem:TubeDeformationOptimizing):
     cluster_res=[]
     pred_node = []
     for i in range(n):
-        x0 = x[i]
-        real_p, init_node, mass = getRealParamAndInitNode(x=x0,
+        x0 = x[i,:]
+        real_x0 = getRealX(x=x0, opti_keys=opti_keys, real_keys=real_keys, opti_setting=opti_setting)
+        real_p, init_node, mass = getRealParamAndInitNode(x=real_x0,
                                                       param_config=param_config, 
                                                       real_keys=real_keys,
                                                       is_discrete=is_discrete,
@@ -463,7 +493,7 @@ def save_opti_res(res, root, proxy_out,
                   cluster_backbone:str='PointSwin', 
                   cluster_type:str='spice',
                   pretext:str='simclr'):
-    p = os.path.join(root, 'opti_result', '{}Proxy_{}Cluster_{}_{}'.format(proxy_backbone, cluster_backbone, cluster_type, pretext))
+    p = os.path.join(root, '{}Proxy_{}Cluster_{}_{}'.format(proxy_backbone, cluster_backbone, cluster_type, pretext))
     check_dirs(p)
     F_filename = os.path.join(p, 'res_F.npy')
     X_filename = os.path.join(p, 'res_X.npy')

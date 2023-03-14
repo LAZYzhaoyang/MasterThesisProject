@@ -41,11 +41,24 @@ from .evaluationlib import get_predictions, hungarian_evaluate, contrastive_eval
 from ..model import DeepClusterCenter
 
 #===================================Main Train Function===================================#
-def main_train(task:str='ResponseProxy', model_type:str='PointSwin', 
-               ncluster:int=4, point2img=False, opti='adamw', 
-               pretext:str='byol', epochs:int=200, val_rate=0.2, batch_size:int=16, 
-               num_worker:int=4, learn_rate=0.0001, feature_dim:int=256, 
-               save_model_epoch:int=50, data_root=None, result_root=None):
+def main_train(task:str='ResponseProxy', 
+               model_type:str='PointSwin', 
+               ncluster:int=4, 
+               point2img=False, 
+               opti='adamw', 
+               pretext:str='byol', 
+               epochs:int=200, 
+               val_rate=0.2, 
+               batch_size:int=16, 
+               num_worker:int=4, 
+               learn_rate=0.0001, 
+               feature_dim:int=256, 
+               save_model_epoch:int=50, 
+               data_root=None, 
+               result_root=None,
+               empty_attn:bool=True,
+               empty_upsample:bool=True,
+               empty_downsample:bool=True):
     CFG = get_task_config(task=task, model_type=model_type, ncluster=ncluster,
                           point2img=point2img, opti=opti, pretext=pretext, 
                           epochs=epochs, val_rate=val_rate, batch_size=batch_size,
@@ -53,6 +66,10 @@ def main_train(task:str='ResponseProxy', model_type:str='PointSwin',
                           feature_dim=feature_dim, save_model_epoch=save_model_epoch, 
                           data_root=data_root, result_root=result_root)
     if task == 'ResponseProxy':
+        if model_type == 'ablationPointSwin':
+            CFG.model_config['empty_attn'] = empty_attn
+            CFG.model_config['empty_upsample'] = empty_upsample
+            CFG.model_config['empty_downsample'] = empty_downsample
         train_proxy(config=CFG)
     elif task == 'supervised':
         train_supervised(config=CFG)
@@ -127,6 +144,7 @@ def train_proxy(config):
     writer = SummaryWriter(config.path_config['Log'])
     model_name = config.model_name
     model_type = config.model_type
+    
     epoch_start=0
     # create and load model
     proxymodel = getModel(config)

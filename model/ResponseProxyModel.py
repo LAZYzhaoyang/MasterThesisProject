@@ -17,6 +17,7 @@ import os
 
 from .base_model.PointSwinTransformer import ResponsePointSwinTransformerProxyModel
 from .base_model.PointTransformer import ResponsePointTransformerProxyModel
+from .base_model.AblationPointSwin import emptyResponsePointSwinTransformerProxyModel
 from .base_model.mlp import ProxyMLP
 #==================================Point Swin==================================#
 def getProxyModel(config, model_type='PointSwin'):
@@ -26,6 +27,8 @@ def getProxyModel(config, model_type='PointSwin'):
         model = build_ResponsePointTransformerProxyModel(config=config)
     elif model_type == 'MLP':
         model = build_ResponseProxyMLP(config=config)
+    elif model_type == 'ablationPointSwin':
+        model = build_emptyResponsePointSwinTransformerProxyModel(config=config)
     else:
         raise ValueError('Invalid Model name {}.'.format(model_type))
 
@@ -59,6 +62,25 @@ def build_ResponsePointSwinTransformerProxyModel(config):
                                                    window_size=config['window_size'],
                                                    attn_layers=config['attn_layers'],
                                                    mlp_dim=config['mlp_dim'])
+    return model
+
+def build_emptyResponsePointSwinTransformerProxyModel(config):
+    model = emptyResponsePointSwinTransformerProxyModel(in_channels=config['in_channel'],
+                                                        out_channels=config['out_channel'],
+                                                        param_dim=config['param_dim'],
+                                                        res_dim=config['res_dim'],
+                                                        embed_dim=config['embed_dim'],
+                                                        scale_factor=config['scale_factor'],
+                                                        stage_num=config['stage_num'],
+                                                        layers_num=config['layers_num'],
+                                                        heads=config['heads'],
+                                                        head_dims=config['head_dims'],
+                                                        window_size=config['window_size'],
+                                                        attn_layers=config['attn_layers'],
+                                                        mlp_dim=config['mlp_dim'],
+                                                        empty_attn=config['empty_attn'],
+                                                        empty_downsample=config['empty_downsample'],
+                                                        empty_upsample=config['empty_upsample'])
     return model
 
 def build_ResponseProxyMLP(config):
