@@ -1,6 +1,10 @@
 # Code Update Log
 author: Zhaoyang Li
 Central South University
+### 2023/03/14
+Master Thesis Project Version 4.0.0
+增加了消融实验部分
+可以完成消融实验
 
 ### 2022/10/19
 version 3.4.2 更新了生成初始点云的程序，原本的生成初始点云的y和z轴反了，目前已经修复了这个bug，优化出来的结果目前看来还行。plot部分的程序也进行了一定改进。
